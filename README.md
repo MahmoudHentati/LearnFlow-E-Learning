@@ -5,6 +5,7 @@
 [![ASP.NET Core API](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-512BD4)](https://learn.microsoft.com/aspnet/core/)
 [![Entity Framework Core](https://img.shields.io/badge/ORM-EF%20Core%209-512BD4)](https://learn.microsoft.com/ef/core/)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![E2E Testing](https://img.shields.io/badge/E2E%20Testing-Playwright%20%26%20Pytest-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
 [![Architecture](https://img.shields.io/badge/Architecture-Clean%20%2F%20Layered-success)]()
 
 A full-stack, enterprise-grade educational platform built with **.NET 9**, **Blazor WebAssembly**, and **ASP.NET Core Web API**, architected according to **Clean Architecture** and **Domain-Driven Design (DDD)** principles.
@@ -67,6 +68,24 @@ Secured using modern ASP.NET Core Identity (`MapIdentityApi<AppUser>()`) with ta
   * Practical Assignments / Tests with student submission uploads and instructor feedback/scoring.
 * **Enrollment & Tracking:** Real-time completion progression tracking for active students.
 * **Reviews & Feedback:** Rating and testimonial system calculating dynamic course reputation.
+
+---
+
+## 🧪 Automated Testing & QA Framework (Playwright & Pytest)
+
+The solution incorporates a comprehensive End-to-End (E2E) automated testing suite located in `tests/e2e_playwright/`:
+* **Page Object Model (POM):** Reusable page interactions (`tests/pages/`) separating tests from DOM selectors.
+* **Authentication Suite (`test_auth.py`):** Browser-level validation for login flows, role permissions, and session lifecycles.
+* **Navigation & Catalog Suite (`test_navigation.py`):** Automated verification of dynamic course catalogs and interactive Blazor components.
+* **Performance Suite (`test_performance.py`):** UI response time metrics and rendering speed validation.
+
+To execute the test suite:
+```bash
+cd tests/e2e_playwright
+pip install -r requirements.txt
+playwright install
+pytest --html=rapport_final/report.html
+```
 
 ---
 
