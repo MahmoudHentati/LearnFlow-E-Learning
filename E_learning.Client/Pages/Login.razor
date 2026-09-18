@@ -1,0 +1,222 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@inject IAuthenticationService AuthenticationService
+@inject IRoleBasedRedirectService RoleBasedRedirectService
+@inject ITokenStorageService TokenStorageService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ClientThemeService ThemeService
+@inject HttpClient Http
+@implements IDisposable
+
+<PageTitle>Connexion - EduLearn</PageTitle>
+
+<div class="login-wrapper @(ThemeService.IsDarkMode ? "theme-dark" : "theme-light")">
+
+    <!-- Back to home -->
+    <div class="iform-back-row">
+        <a href="/" class="iform-back">←</a>
+    </div>
+
+    <div class="login-box">
+
+        <div class="login-brand">
+            <MudIcon Icon="@Icons.Material.Filled.AutoStories" Class="login-brand__icon" />
+            EduLearn
+        </div>
+
+        <h1 class="login-title">Connexion</h1>
+        <p class="login-subtitle">Veuillez entrer vos informations pour continuer.</p>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_errorMessage</MudAlert>
+        }
+
+        <EditForm Model="_loginRequest" OnValidSubmit="HandleLoginAsync" class="login-form">
+            @if (IsRegistered)
+            {
+                <MudAlert Severity="@(PendingApproval ? Severity.Warning : Severity.Success)" Dense="true" Class="mb-4">
+                    @(PendingApproval
+                        ? "Inscription réussie. Votre compte formateur est en attente de validation par un administrateur."
+                        : "Inscription réussie ! Vous pouvez maintenant vous connecter.")
+                </MudAlert>
+            }
+            <MudTextField @bind-Value="_loginRequest.Email" Label="Email" Required="true" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" />
+            <MudTextField @bind-Value="_loginRequest.Password" 
+                          Label="Mot de passe" 
+                          InputType="@_passwordInput" 
+                          Required="true" 
+                          Variant="Variant.Outlined" 
+                          FullWidth="true" 
+                          Class="mb-3"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@_passwordInputIcon"
+                          OnAdornmentClick="TogglePasswordVisibility"
+                          AdornmentAriaLabel="Afficher le mot de passe" />
+            <MudCheckBox @bind-Value="_loginRequest.RememberMe" Label="Se souvenir de moi" Class="mb-4" />
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_isLoading" Class="lf-btn mt-2">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+                    <span>Connexion...</span>
+                }
+                else
+                {
+                    <span>Se connecter</span>
+                }
+            </MudButton>
+        </EditForm>
+
+        <p class="login-footer mt-4">
+            Pas encore de compte ? <a href="@GetRegisterUrl()">S'inscrire</a>
+        </p>
+
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "registered")]
+    public bool IsRegistered { get; set; }
+
+    [SupplyParameterFromQuery(Name = "pendingApproval")]
+    public bool PendingApproval { get; set; }
+
+    [SupplyParameterFromQuery(Name = "formationId")]
+    public int? FormationId { get; set; }
+
+    private readonly LoginRequest _loginRequest = new();
+    private string _errorMessage = string.Empty;
+    private bool _isLoading;
+    private bool _passwordVisibility;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePasswordVisibility()
+    {
+        if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        ThemeService.ThemeChanged += HandleThemeChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            if (FormationId.GetValueOrDefault() > 0)
+            {
+                if (authState.User.IsInRole(AppRoles.Student))
+                {
+                    await EnrollRequestedFormationAsync(FormationId.GetValueOrDefault());
+                }
+
+                NavigationManager.NavigateTo(GetReturnDestination(authState.User.IsInRole(AppRoles.Student)));
+                return;
+            }
+
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    private async Task HandleLoginAsync()
+    {
+        _isLoading = true;
+        _errorMessage = string.Empty;
+
+        var response = await AuthenticationService.LoginAsync(_loginRequest);
+        if (response == null)
+        {
+            var pendingInstructorApproval = await TokenStorageService.GetItemAsync<bool>("pendingInstructorApproval");
+            if (pendingInstructorApproval)
+            {
+                await TokenStorageService.RemoveItemAsync("pendingInstructorApproval");
+            }
+            _errorMessage = pendingInstructorApproval
+                ? "Votre compte formateur est en attente de validation par un administrateur."
+                : "Email ou mot de passe invalide.";
+            _isLoading = false;
+            return;
+        }
+
+        var userRoles = await TokenStorageService.GetItemAsync<string[]>("userRoles") ?? Array.Empty<string>();
+        if (FormationId.GetValueOrDefault() > 0 && userRoles.Contains(AppRoles.Student))
+        {
+            await EnrollRequestedFormationAsync(FormationId.GetValueOrDefault());
+        }
+
+        if (!string.IsNullOrWhiteSpace(ReturnUrl))
+        {
+            NavigationManager.NavigateTo(GetReturnDestination(userRoles.Contains(AppRoles.Student)));
+            return;
+        }
+
+        NavigationManager.NavigateTo(RoleBasedRedirectService.GetRedirectUrl(userRoles));
+    }
+
+    private async Task EnrollRequestedFormationAsync(int formationId)
+    {
+        try
+        {
+            await Http.PostAsync($"api/inscriptions/me/{formationId}", content: null);
+        }
+        catch
+        {
+            // L'utilisateur reste connecté et pourra réessayer depuis la page formation.
+        }
+    }
+
+    private string GetRegisterUrl()
+    {
+        if (FormationId.GetValueOrDefault() <= 0)
+        {
+            return "/inscription";
+        }
+
+        var returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? $"/etudiant/formations/{FormationId}" : ReturnUrl;
+        return $"/inscription/etudiant?formationId={FormationId}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    private string GetReturnDestination(bool isStudent)
+    {
+        if (!string.IsNullOrWhiteSpace(ReturnUrl))
+        {
+            return $"/{ReturnUrl.TrimStart('/')}";
+        }
+
+        if (FormationId.GetValueOrDefault() > 0)
+        {
+            return isStudent ? $"/etudiant/formations/{FormationId}" : $"/formations/{FormationId}";
+        }
+
+        return "/";
+    }
+
+    private void HandleThemeChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ThemeService.ThemeChanged -= HandleThemeChanged;
+    }
+}

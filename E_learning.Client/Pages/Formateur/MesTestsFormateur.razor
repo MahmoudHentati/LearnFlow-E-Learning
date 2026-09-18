@@ -1,0 +1,174 @@
+@page "/formateur-mes-tests"
+@attribute [Authorize(Roles = "Instructor")]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<PageTitle>Mes tests</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700;">Mes tests</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Tous les tests rattachés à vos modules et formations</MudText>
+        </div>
+        <div class="d-flex align-center gap-4">
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @FilteredTests.Count test(s)
+            </MudChip>
+           
+        </div>
+    </div>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" />
+                <MudText Typo="Typo.button">CRITERES DE RECHERCHE</MudText>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => _searchText = string.Empty)" Color="Color.Secondary">
+                    REINITIALISER
+                </MudButton>
+            }
+        </div>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_searchText" Placeholder="Rechercher consigne, module ou formation..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="border-radius:4px;" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="ma-4">@_errorMessage</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="FilteredTests" Hover="true" Dense="true" Striped="true" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+                <HeaderContent>
+                    <MudTh>Consigne</MudTh>
+                    <MudTh>Module</MudTh>
+                    <MudTh>Formation</MudTh>
+                    <MudTh>Fichier</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@DisplayOrDash(context.Consigne)</MudTd>
+                    <MudTd>@DisplayOrDash(context.Module?.Titre ?? $"Module #{context.ModuleId}")</MudTd>
+                    <MudTd>@DisplayOrDash(context.Module?.Formation?.Titre)</MudTd>
+                    <MudTd>
+                        @if (!string.IsNullOrWhiteSpace(context.FichierConsigneUrl))
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Info" Href="@context.FichierConsigneUrl" Target="_blank" Size="Size.Small">
+                                Ouvrir
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2">-</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small" Disabled="@(context.Module?.Formation?.Id is null)" OnClick="@(() => OpenFormation(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.FactCheck" Color="Color.Info" Size="Size.Small" Href="/formateur-mes-evaluations" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteTestAsync(context))" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Aucun test trouvé.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Lignes par page:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<TestDTO> _tests = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchText = string.Empty;
+
+    private List<TestDTO> FilteredTests => _tests
+        .Where(test =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || Contains(test.Consigne, _searchText)
+            || Contains(test.Module?.Titre, _searchText)
+            || Contains(test.Module?.Formation?.Titre, _searchText))
+        .OrderBy(test => test.Module?.Formation?.Titre)
+        .ThenBy(test => test.Module?.Titre)
+        .ThenBy(test => test.Consigne)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _tests = await Http.GetFromJsonAsync<List<TestDTO>>("api/tests/instructor/me") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger vos tests.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenFormation(TestDTO test)
+    {
+        var formationId = test.Module?.Formation?.Id;
+        if (formationId > 0)
+        {
+            NavigationManager.NavigateTo($"/formateur/formations/{formationId.Value}");
+        }
+    }
+
+    private async Task DeleteTestAsync(TestDTO test)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Confirmation",
+            $"Voulez-vous supprimer le test '{test.Consigne}' ?",
+            yesText: "Supprimer",
+            cancelText: "Annuler");
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync($"api/tests/{test.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            _tests.RemoveAll(item => item.Id == test.Id);
+        }
+        else
+        {
+            _errorMessage = "Suppression impossible.";
+        }
+    }
+
+    private static bool Contains(string? value, string search)
+        => value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+}

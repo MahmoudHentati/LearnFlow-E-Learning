@@ -1,0 +1,160 @@
+@using System.ComponentModel.DataAnnotations
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_errorMessage</MudAlert>
+        }
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.FirstName" Label="Prénom" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.LastName" Label="Nom" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_model.Email" Label="Email" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="_model.Role" Label="Rôle" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@AppRoles.Admin">Admin</MudSelectItem>
+                    <MudSelectItem Value="@AppRoles.Student">Student</MudSelectItem>
+                    <MudSelectItem Value="@AppRoles.Instructor">Instructor</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSwitch T="bool" @bind-Value="_model.IsActive" Color="Color.Primary" Label="Actif" />
+            </MudItem>
+
+            @if (!IsEdit)
+            {
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_password" Label="Mot de passe" Variant="Variant.Outlined" FullWidth="true" InputType="InputType.Password" Required="true" />
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Disabled="_isSaving" OnClick="Cancel">Annuler</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSaving" OnClick="SaveAsync">
+            @(_isSaving ? "Enregistrement..." : "Enregistrer")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string? UserId { get; set; }
+    [Parameter] public string? DefaultRole { get; set; }
+
+    private readonly UserEditorModel _model = new();
+    private string _password = string.Empty;
+    private bool _isSaving;
+    private string? _errorMessage;
+    private bool IsEdit => !string.IsNullOrWhiteSpace(UserId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _model.Role = string.IsNullOrWhiteSpace(DefaultRole) ? AppRoles.Student : DefaultRole;
+        _model.IsActive = true;
+
+        if (!IsEdit)
+        {
+            return;
+        }
+
+        try
+        {
+            var loaded = await Http.GetFromJsonAsync<AdminUserDto>($"api/users/{UserId}");
+            if (loaded is null)
+            {
+                _errorMessage = "Utilisateur introuvable.";
+                return;
+            }
+
+            _model.FirstName = loaded.FirstName;
+            _model.LastName = loaded.LastName;
+            _model.Email = loaded.Email;
+            _model.Role = loaded.Role;
+            _model.IsActive = loaded.IsActive;
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger l'utilisateur.";
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_model.FirstName) || string.IsNullOrWhiteSpace(_model.LastName) || string.IsNullOrWhiteSpace(_model.Email))
+        {
+            _errorMessage = "Prénom, nom et email sont obligatoires.";
+            return;
+        }
+
+        if (!IsEdit && string.IsNullOrWhiteSpace(_password))
+        {
+            _errorMessage = "Le mot de passe est obligatoire pour la création.";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            HttpResponseMessage response;
+
+            if (IsEdit)
+            {
+                var request = new UpdateUserRequestDto(_model.FirstName, _model.LastName, _model.Email, _model.Role, _model.IsActive);
+                response = await Http.PutAsJsonAsync($"api/users/{UserId}", request);
+            }
+            else
+            {
+                var request = new CreateUserRequestDto(_model.FirstName, _model.LastName, _model.Email, _password, _model.Role);
+                response = await Http.PostAsJsonAsync("api/users", request);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _errorMessage = "L'enregistrement a échoué.";
+                return;
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch
+        {
+            _errorMessage = "Erreur pendant l'enregistrement.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private sealed class UserEditorModel
+    {
+        [Required]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Role { get; set; } = AppRoles.Student;
+
+        public bool IsActive { get; set; }
+    }
+}

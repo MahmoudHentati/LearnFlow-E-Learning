@@ -1,0 +1,206 @@
+@page "/etudiant-mes-quiz"
+@attribute [Authorize(Roles = "Student")]
+@inject HttpClient Http
+
+<PageTitle>Mes quiz</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.Quiz" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700; color:#1E3A8A;">Mes Quiz</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Tous vos quiz par formation et module, avec état de passage</MudText>
+        </div>
+        <div class="d-flex align-center gap-4">
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @_quizItems.Count quiz
+            </MudChip>
+            <MudChip T="string" Color="Color.Success" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @_quizItems.Count(item => item.Participation is not null) passés
+            </MudChip>
+        </div>
+    </div>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" />
+                <MudText Typo="Typo.button">CRITÈRES DE RECHERCHE</MudText>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => _searchText = string.Empty)" Color="Color.Secondary">
+                    RÉINITIALISER
+                </MudButton>
+            }
+        </div>
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <MudTextField @bind-Value="_searchText" Placeholder="Rechercher formation, module ou quiz..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="border-radius:4px;" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="string" @bind-Value="_statusFilter" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="string" Value="@AllStatus">Tous les statuts</MudSelectItem>
+                    <MudSelectItem T="string" Value="@DoneStatus">Passés</MudSelectItem>
+                    <MudSelectItem T="string" Value="@PendingStatus">Non passés</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            </div>
+        </MudPaper>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+    }
+    else
+    {
+        <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+            <MudTable Items="@FilteredQuizItems" Dense="true" Hover="true" Striped="true" Bordered="false">
+                <HeaderContent>
+                    <MudTh>Formation</MudTh>
+                    <MudTh>Module</MudTh>
+                    <MudTh>Quiz</MudTh>
+                    <MudTh>Questions</MudTh>
+                    <MudTh>Minimum</MudTh>
+                    <MudTh>Durée</MudTh>
+                    <MudTh>Statut</MudTh>
+                    <MudTh>Résultat</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    <MudTd DataLabel="Formation">@item.FormationTitle</MudTd>
+                    <MudTd DataLabel="Module">@item.ModuleTitle</MudTd>
+                    <MudTd DataLabel="Quiz">@($"Quiz #{item.Quiz.Id}")</MudTd>
+                    <MudTd DataLabel="Questions">@(item.Quiz.Questions?.Count ?? 0)</MudTd>
+                    <MudTd DataLabel="Minimum">@item.Quiz.ScoreMinimum</MudTd>
+                    <MudTd DataLabel="Durée">@($"{item.Quiz.DLimite} min")</MudTd>
+                    <MudTd DataLabel="Statut">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(item.Participation is null ? Color.Warning : Color.Success)">
+                            @(item.Participation is null ? "Non passé" : "Passé")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Résultat">
+                        @(item.Participation is null ? "-" : $"{item.Participation.Score:0.##}/{GetMaxQuizScore(item.Quiz):0.##}")
+                    </MudTd>
+                    <MudTd DataLabel="Actions">
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="@($"/etudiant/formations/{item.FormationId}")">
+                            Ouvrir
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Lignes par page:" />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private const string AllStatus = "all";
+    private const string DoneStatus = "done";
+    private const string PendingStatus = "pending";
+
+    private readonly List<StudentQuizItem> _quizItems = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchText = string.Empty;
+    private string _statusFilter = AllStatus;
+
+    private IEnumerable<StudentQuizItem> FilteredQuizItems => _quizItems
+        .Where(MatchesFilters)
+        .OrderBy(item => item.FormationTitle)
+        .ThenBy(item => item.ModuleTitle)
+        .ThenBy(item => item.Quiz.Id);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>("api/inscriptions/me") ?? [];
+
+            foreach (var inscription in inscriptions)
+            {
+                var formation = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{inscription.FormationId}");
+                if (formation is null)
+                {
+                    continue;
+                }
+
+                var participations = await Http.GetFromJsonAsync<List<ParticipationQuizDTO>>($"api/participationquizzes/inscription/{inscription.Id}") ?? [];
+                var modules = formation.Modules?.OrderBy(module => module.Ordre).ToList() ?? [];
+
+                foreach (var module in modules)
+                {
+                    foreach (var quiz in (module.Quizzes ?? Enumerable.Empty<QuizDTO>()).OrderBy(quiz => quiz.Id))
+                    {
+                        _quizItems.Add(new StudentQuizItem(
+                            inscription.FormationId,
+                            DisplayOrDash(formation.Titre),
+                            DisplayOrDash(module.Titre),
+                            quiz,
+                            participations.FirstOrDefault(participation => participation.QuizId == quiz.Id)));
+                    }
+                }
+            }
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger la liste de vos quiz.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private bool MatchesFilters(StudentQuizItem item)
+    {
+        var matchesStatus = _statusFilter switch
+        {
+            DoneStatus => item.Participation is not null,
+            PendingStatus => item.Participation is null,
+            _ => true
+        };
+
+        if (!matchesStatus)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            return true;
+        }
+
+        return new[]
+        {
+            item.FormationTitle,
+            item.ModuleTitle,
+            $"Quiz {item.Quiz.Id}"
+        }.Any(value => value.Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static float GetMaxQuizScore(QuizDTO quiz)
+        => quiz.Questions?.Sum(question => question.Bareme) ?? 0f;
+
+    private sealed record StudentQuizItem(
+        int FormationId,
+        string FormationTitle,
+        string ModuleTitle,
+        QuizDTO Quiz,
+        ParticipationQuizDTO? Participation);
+}

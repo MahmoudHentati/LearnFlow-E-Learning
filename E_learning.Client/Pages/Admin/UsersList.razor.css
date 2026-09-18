@@ -1,0 +1,28 @@
+.formation-list-page {
+    padding: 24px;
+}
+
+.formation-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    margin-bottom: 18px;
+    border-radius: 16px;
+    background: var(--app-surface-strong, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--app-border, rgba(255, 255, 255, 0.1));
+}
+
+.formation-table {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--app-border, rgba(255, 255, 255, 0.1));
+}
+
+@media (max-width: 768px) {
+    .formation-list-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

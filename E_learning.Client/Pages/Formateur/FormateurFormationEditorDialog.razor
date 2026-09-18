@@ -1,0 +1,227 @@
+@using E_learning.Models.DTOs
+@using E_learning.Models.Helpers
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-3 mb-n1" />
+            @(IsEdit ? "Modifier la formation" : "Créer une nouvelle formation")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 600px; overflow-y: scroll">
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-4">@_errorMessage</MudAlert>
+            }
+
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Titre" Label="Titre" Variant="Variant.Outlined" Required="true" FullWidth="true" />
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudAutocomplete T="CategorieDTO"
+                                     Label="Catégorie"
+                                     Variant="Variant.Outlined"
+                                     FullWidth="true"
+                                     SearchFunc="SearchCategoriesAsync"
+                                     ToStringFunc="@(c => c?.Nom ?? "")"
+                                     Value="_selectedCategorie"
+                                     ValueChanged="OnCategorieChangedAsync"
+                                     Required="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudAutocomplete T="SousCategorieDTO"
+                                     Label="Sous-catégorie"
+                                     Variant="Variant.Outlined"
+                                     FullWidth="true"
+                                     SearchFunc="SearchSousCategoriesAsync"
+                                     ToStringFunc="@(s => s?.Nom ?? "")"
+                                     Value="_selectedSousCategorie"
+                                     ValueChanged="OnSousCategorieChanged"
+                                     Required="true"
+                                     Disabled="@(_selectedCategorie == null)" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" @bind-Value="_model.Difficulte" Label="Difficulté" Variant="Variant.Outlined" FullWidth="true">
+                        @foreach (var option in DifficultyOptions)
+                        {
+                            <MudSelectItem Value="@option">@option</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" @bind-Value="_model.Statut" Label="Statut" Variant="Variant.Outlined" FullWidth="true">
+                        @foreach (var option in StatusOptions)
+                        {
+                            <MudSelectItem Value="@option">@option</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Prerequis" Label="Prérequis" Variant="Variant.Outlined" Lines="2" FullWidth="true" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Description" Label="Description" Variant="Variant.Outlined" Lines="4" FullWidth="true" Required="true" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Annuler</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="_isSaving">
+            @(_isSaving ? "Enregistrement..." : "Enregistrer")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int? FormationId { get; set; }
+
+    private FormationDTO _model = new()
+    {
+        DateCreation = DateTime.UtcNow
+    };
+
+    private bool _isSaving;
+    private string? _errorMessage;
+    private static readonly string[] DifficultyOptions = ["Débutant", "Intermédiaire", "Avancé", "Expert"];
+    private static readonly string[] StatusOptions = FormationStatusHelper.OrderedValues;
+    
+    private List<CategorieDTO> _categories = [];
+    private List<SousCategorieDTO> _sousCategories = [];
+    private CategorieDTO? _selectedCategorie;
+    private SousCategorieDTO? _selectedSousCategorie;
+    
+    private bool IsEdit => FormationId.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSelectionsAsync();
+
+        if (IsEdit)
+        {
+            try
+            {
+                var loaded = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{FormationId.GetValueOrDefault()}");
+                if (loaded != null)
+                {
+                    _model = loaded;
+                    _model.Statut = FormationStatusHelper.NormalizeOrDefault(_model.Statut, StatusOptions[0]);
+                    _selectedSousCategorie = _sousCategories.FirstOrDefault(s => s.Id == _model.SousCategorieId);
+                    var categorieId = _selectedSousCategorie?.CategorieId ?? _model.SousCategorie?.CategorieId;
+                    _selectedCategorie = _categories.FirstOrDefault(c => c.Id == categorieId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = "Erreur lors du chargement de la formation.";
+                Console.WriteLine(ex.Message);
+            }
+        }
+        else
+        {
+            _model.Difficulte = DifficultyOptions[0];
+            _model.Statut = FormationStatusHelper.NormalizeOrDefault(_model.Statut, StatusOptions[0]);
+        }
+    }
+
+    private async Task LoadSelectionsAsync()
+    {
+        try
+        {
+            _categories = await Http.GetFromJsonAsync<List<CategorieDTO>>("api/categories") ?? [];
+            _sousCategories = await Http.GetFromJsonAsync<List<SousCategorieDTO>>("api/souscategories") ?? [];
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading selections: {ex.Message}");
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Titre) || _model.SousCategorieId <= 0)
+        {
+            _errorMessage = "Veuillez remplir tous les champs obligatoires.";
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = null;
+
+        try
+        {
+            _model.DateCreation ??= DateTime.UtcNow;
+
+            HttpResponseMessage response;
+            if (IsEdit)
+            {
+                response = await Http.PutAsJsonAsync($"api/formation/{_model.Id}", _model);
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/formation", _model);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(IsEdit ? "Formation mise à jour" : "Formation créée avec succès", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var details = await response.Content.ReadAsStringAsync();
+                _errorMessage = string.IsNullOrWhiteSpace(details)
+                    ? "Une erreur est survenue lors de l'enregistrement."
+                    : details;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Erreur de connexion au serveur.";
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private Task<IEnumerable<CategorieDTO>> SearchCategoriesAsync(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value)) return Task.FromResult<IEnumerable<CategorieDTO>>(_categories);
+        return Task.FromResult<IEnumerable<CategorieDTO>>(_categories.Where(x => x.Nom.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+    }
+
+    private Task<IEnumerable<SousCategorieDTO>> SearchSousCategoriesAsync(string value, CancellationToken token)
+    {
+        var query = _sousCategories.Where(s => s.CategorieId == _selectedCategorie?.Id);
+        if (string.IsNullOrEmpty(value)) return Task.FromResult<IEnumerable<SousCategorieDTO>>(query);
+        return Task.FromResult<IEnumerable<SousCategorieDTO>>(query.Where(x => x.Nom.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+    }
+
+    private void OnCategorieChangedAsync(CategorieDTO? categorie)
+    {
+        _selectedCategorie = categorie;
+        _selectedSousCategorie = null;
+        _model.SousCategorieId = 0;
+    }
+
+    private void OnSousCategorieChanged(SousCategorieDTO? sousCategorie)
+    {
+        _selectedSousCategorie = sousCategorie;
+        _model.SousCategorieId = sousCategorie?.Id ?? 0;
+    }
+}

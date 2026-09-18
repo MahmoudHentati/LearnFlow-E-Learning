@@ -1,0 +1,309 @@
+/* ═══════════════════════ ProfilEtudiant.razor.css ═══════════════════════ */
+
+.profil-page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+    font-family: 'Outfit', sans-serif;
+    color: var(--layout-text, #eef2ff);
+}
+
+/* ── Hero ── */
+.profil-hero {
+    position: relative;
+    background: linear-gradient(135deg, #1e2448 0%, #15192e 100%);
+    border-radius: 24px;
+    padding: 52px 32px 40px;
+    text-align: center;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    margin-bottom: 28px;
+}
+
+.hero-bg-shapes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.bg-shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.35;
+}
+
+.shape-a {
+    width: 260px;
+    height: 260px;
+    background: radial-gradient(circle, #5b7ffa, transparent 70%);
+    top: -80px;
+    right: -60px;
+}
+
+.shape-b {
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, #b794f4, transparent 70%);
+    bottom: -60px;
+    left: -40px;
+}
+
+.avatar-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 16px;
+}
+
+.avatar-circle {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #5b7ffa, #7c5deb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(91, 127, 250, 0.25);
+    position: relative;
+    z-index: 1;
+}
+
+.avatar-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: #4ade80;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #15192e;
+    color: #fff;
+    z-index: 2;
+}
+
+.profil-name {
+    margin: 0 0 10px;
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #fff;
+    position: relative;
+    z-index: 1;
+}
+
+.profil-role-badge {
+    display: inline-block;
+    background: rgba(91, 127, 250, 0.18);
+    color: #7c9ef8;
+    border: 1px solid rgba(91, 127, 250, 0.35);
+    border-radius: 20px;
+    padding: 5px 18px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    position: relative;
+    z-index: 1;
+}
+
+/* ── Body ── */
+.profil-body {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* ── Info Card ── */
+.info-card {
+    background: rgba(26, 31, 60);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    padding: 28px 32px;
+    backdrop-filter: blur(8px);
+}
+
+.info-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #c0c8e8;
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.info-card-header .mud-icon-root {
+    color: #7c9ef8;
+    font-size: 1.3rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+.info-field label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6872a0;
+    margin-bottom: 6px;
+}
+
+.info-value {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #d4daef;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.role-chip {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.25);
+    font-weight: 600;
+}
+
+.status-active {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.2);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background: #4ade80;
+    border-radius: 50%;
+    box-shadow: 0 0 6px #4ade80;
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ── Stats Row ── */
+.stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.stat-pill {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(91, 127, 250, 0.08);
+    border: 1px solid rgba(91, 127, 250, 0.15);
+    border-radius: 14px;
+    padding: 18px 20px;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.stat-pill:hover {
+    background: rgba(91, 127, 250, 0.15);
+    transform: translateY(-2px);
+}
+
+.stat-pill .mud-icon-root {
+    color: #7c9ef8;
+    font-size: 1.6rem;
+}
+
+.stat-pill strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #d4daef;
+    font-weight: 700;
+}
+
+.stat-pill span {
+    font-size: 0.78rem;
+    color: #6872a0;
+}
+
+/* ── Quick Links ── */
+.quick-links {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.quick-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    background: linear-gradient(135deg, #5b7ffa, #7c5deb);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(91, 127, 250, 0.3);
+}
+
+.quick-link-btn:hover {
+    box-shadow: 0 6px 20px rgba(91, 127, 250, 0.5);
+    transform: translateY(-2px);
+}
+
+.quick-link-btn.secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: #b0b8d9;
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quick-link-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    box-shadow: none;
+}
+
+@media (max-width: 600px) {
+    .profil-page {
+        padding: 16px 12px 40px;
+    }
+
+    .profil-hero {
+        padding: 36px 20px 30px;
+    }
+
+    .info-card {
+        padding: 20px 18px;
+    }
+
+    .quick-link-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

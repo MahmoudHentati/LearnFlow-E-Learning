@@ -1,0 +1,357 @@
+@page "/"
+@* @attribute [Authorize] *@
+@attribute [AllowAnonymous]
+@inject IHttpClientFactory HttpClientFactory
+@implements IDisposable
+<PageTitle>EduLearn – Plateforme d'apprentissage en ligne</PageTitle>
+
+<div class="home-page">
+    <AuthorizeView>
+        <NotAuthorized>
+            <header class="h-topbar">
+                <div class="h-brand">
+                    <img src="logo.png" alt="EduLearn logo" class="h-brand-logo" />
+                </div>
+                <div class="h-topbar-actions">
+                    <a href="/login" class="h-btn h-btn-outline h-btn-sm">
+                        <MudIcon Icon="@Icons.Material.Filled.Login" Class="h-btn-icon" />
+                        Se connecter
+                    </a>
+                </div>
+            </header>
+        </NotAuthorized>
+    </AuthorizeView>
+
+    <header class="h-hero">
+        <div class="h-hero-glow"></div>
+        <div class="h-hero-content">
+            <div class="h-badge">
+                <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Class="h-badge-icon" />
+                Plateforme E-learning nouvelle génération
+            </div>
+            <h1 class="h-title">Apprenez plus vite.<br />Progressez plus loin.</h1>
+            <p class="h-subtitle">
+                Une expérience moderne pour les étudiants, formateurs et administrateurs,
+                avec des parcours structurés, un suivi clair et une interface fluide.
+            </p>
+            <div class="h-hero-cta">
+                <AuthorizeView Roles="Student">
+                    <Authorized>
+                        <a href="/etudiant-dashboard" class="h-btn h-btn-solid h-btn-large">
+                            <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="h-btn-icon" />
+                            Mon Tableau de bord
+                        </a>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Roles="Instructor">
+                    <Authorized>
+                        <a href="/formateur-dashboard" class="h-btn h-btn-solid h-btn-large">
+                            <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="h-btn-icon" />
+                            Mon Tableau de bord
+                        </a>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Roles="SuperAdmin, Admin">
+                    <Authorized>
+                        <a href="/admin/dashboard" class="h-btn h-btn-solid h-btn-large">
+                            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="h-btn-icon" />
+                            Tableau admin
+                        </a>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView>
+                    <NotAuthorized>
+                        <a href="/inscription" class="h-btn h-btn-solid h-btn-large">
+                            <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Class="h-btn-icon" />
+                            Démarrer
+                        </a>
+                    </NotAuthorized>
+                </AuthorizeView>
+                <a href="#features" class="h-btn h-btn-outline h-btn-large">
+                    Découvrir la plateforme
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowDownward" Class="h-btn-icon-right" />
+                </a>
+            </div>
+
+            <div class="h-stats">
+                <div class="h-stat">
+                    <MudIcon Icon="@Icons.Material.Filled.MenuBook" Class="h-stat-icon" />
+                    <span class="h-stat-value">@_publishedFormationsCount</span>
+                    <span class="h-stat-label">Formations</span>
+                </div>
+                <div class="h-stat">
+                    <MudIcon Icon="@Icons.Material.Filled.People" Class="h-stat-icon" />
+                    <span class="h-stat-value">@_studentCount</span>
+                    <span class="h-stat-label">Apprenants</span>
+                </div>
+                <div class="h-stat">
+                    <MudIcon Icon="@Icons.Material.Filled.WifiTethering" Class="h-stat-icon" />
+                    <span class="h-stat-value">@_categoryCount</span>
+                    <span class="h-stat-label">Catégories</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="courses" class="h-courses">
+        <div class="h-courses-head">
+            <div>
+                <h2>Formations disponibles</h2>
+                <p>Explorez les cours déjà publiés sur la plateforme.</p>
+            </div>
+
+            <a href="/formations" class="h-view-all-link">
+                Voir tout
+                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="h-view-all-icon" />
+            </a>
+        </div>
+
+        @if (_isLoadingCourses)
+        {
+            <div class="h-courses-state">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Medium" />
+                <span>Chargement des cours...</span>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_coursesError))
+        {
+            <div class="h-courses-state h-courses-state-error">@_coursesError</div>
+        }
+        else if (CurrentCourse is null)
+        {
+            <div class="h-courses-state">Aucune formation n'est disponible pour le moment.</div>
+        }
+        else
+        {
+            <div class="h-carousel">
+                <button class="h-carousel-nav" @onclick="ShowPreviousCourse" disabled="@(_courses.Count <= 1)">
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronLeft" />
+                </button>
+
+                <div class="h-carousel-viewport" style="--carousel-index:@GetCarouselIndex();">
+                    <div class="h-carousel-track">
+                        @foreach (var course in _courses)
+                        {
+                            <article class="h-course-card @(course == CurrentCourse ? "is-active" : "")">
+                                <span class="h-course-level">@GetCourseLevel(course.Difficulte)</span>
+                                <h3>@course.Titre</h3>
+                                <p>@GetShortDescription(course.Description)</p>
+
+                                <div class="h-course-meta">
+                                    <span>Catégorie: @(course.SousCategorie?.Categorie?.Nom ?? "-")</span>
+                                    <span>Sous-catégorie: @(course.SousCategorie?.Nom ?? "-")</span>
+                                    <span>Formateur: @GetInstructorName(course)</span>
+                                    <span>@course.Modules.Count module(s)</span>
+                                </div>
+
+                                <a href="/formations/@course.Id" class="h-btn h-btn-solid">
+                                    Consulter formation
+                                </a>
+                            </article>
+                        }
+                    </div>
+                </div>
+
+                <button class="h-carousel-nav" @onclick="ShowNextCourse" disabled="@(_courses.Count <= 1)">
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" />
+                </button>
+            </div>
+
+            @if (_courses.Count > 1)
+            {
+                <div class="h-carousel-dots">
+                    @for (var i = 0; i < _courses.Count; i++)
+                    {
+                        var index = i;
+                        <button class="h-carousel-dot @(index == _currentCourseIndex ? "is-active" : "")"
+                                @onclick="() => GoToCourse(index)">
+                        </button>
+                    }
+                </div>
+            }
+        }
+    </section>
+
+    <section id="features" class="h-features">
+        <div class="h-features-head">
+            <h2>Pourquoi choisir EduLearn ?</h2>
+            <p>Une plateforme pensée pour la performance, la clarté et l'engagement.</p>
+        </div>
+        <div class="h-features-grid">
+            <article class="h-feat-card">
+                <div class="h-feat-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.School" Class="h-feat-icon-svg" />
+                </div>
+                <h3>Espace Étudiant Clair</h3>
+                <p>Suivi de progression, accès rapide aux cours et ressources, parcours lisibles et motivants.</p>
+                <div class="h-feat-footer">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Class="h-feat-tag-icon" />
+                    <span>Progression intelligente</span>
+                </div>
+            </article>
+            <article class="h-feat-card">
+                <div class="h-feat-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.CoPresent" Class="h-feat-icon-svg" />
+                </div>
+                <h3>Outils Formateur Productifs</h3>
+                <p>Création de contenus, gestion d'apprenants et publication de parcours en quelques actions.</p>
+                <div class="h-feat-footer">
+                    <MudIcon Icon="@Icons.Material.Filled.EditNote" Class="h-feat-tag-icon" />
+                    <span>Création simplifiée</span>
+                </div>
+            </article>
+            <article class="h-feat-card">
+                <div class="h-feat-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.Bolt" Class="h-feat-icon-svg" />
+                </div>
+                <h3>Expérience Moderne</h3>
+                <p>Interface rapide, responsive et confortable avec bascule thème clair/sombre à la demande.</p>
+                <div class="h-feat-footer">
+                    <MudIcon Icon="@Icons.Material.Filled.Devices" Class="h-feat-tag-icon" />
+                    <span>100 % responsive</span>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <footer class="h-footer">
+        <MudIcon Icon="@Icons.Material.Filled.Copyright" Class="h-footer-icon" />
+        <p>2026 EduLearn. Tous droits réservés.</p>
+    </footer>
+</div>
+
+@code {
+    private readonly List<FormationDTO> _courses = [];
+    private bool _isLoadingCourses = true;
+    private string? _coursesError;
+    private int _currentCourseIndex;
+    private Timer? _carouselTimer;
+    private int _publishedFormationsCount;
+    private int _studentCount;
+    private int _categoryCount;
+
+    private FormationDTO? CurrentCourse => _courses.Count == 0 ? null : _courses[_currentCourseIndex];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var client = HttpClientFactory.CreateClient("AuthClient");
+            var coursesTask = client.GetFromJsonAsync<List<FormationDTO>>("api/Formation");
+            var summaryTask = client.GetFromJsonAsync<HomeSummaryViewModel>("api/Formation/home-summary");
+
+            await Task.WhenAll(coursesTask, summaryTask);
+
+            var courses = await coursesTask;
+            var summary = await summaryTask;
+
+            if (courses is not null)
+            {
+                _courses.AddRange(courses.Where(c => !string.IsNullOrWhiteSpace(c.Titre)));
+            }
+
+            _publishedFormationsCount = summary?.PublishedFormationsCount ?? 0;
+            _categoryCount = summary?.CategoryCount ?? 0;
+            _studentCount = summary?.StudentCount ?? 0;
+        }
+        catch
+        {
+            _coursesError = "Impossible de charger les formations pour le moment.";
+        }
+        finally
+        {
+            _isLoadingCourses = false;
+            _currentCourseIndex = 0;
+            StartCarouselAutoPlay();
+        }
+    }
+
+    private void ShowPreviousCourse()
+    {
+        if (_courses.Count <= 1)
+        {
+            return;
+        }
+
+        _currentCourseIndex = _currentCourseIndex == 0 ? _courses.Count - 1 : _currentCourseIndex - 1;
+    }
+
+    private void ShowNextCourse()
+    {
+        if (_courses.Count <= 1)
+        {
+            return;
+        }
+
+        _currentCourseIndex = _currentCourseIndex == _courses.Count - 1 ? 0 : _currentCourseIndex + 1;
+    }
+
+    private void GoToCourse(int index)
+    {
+        if (_courses.Count == 0 || index < 0 || index >= _courses.Count)
+        {
+            return;
+        }
+
+        _currentCourseIndex = index;
+    }
+
+    private static string GetShortDescription(string description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return "Aucune description disponible.";
+        }
+
+        const int maxLength = 180;
+        return description.Length <= maxLength ? description : $"{description[..maxLength]}...";
+    }
+
+    private static string GetCourseLevel(string? level)
+        => string.IsNullOrWhiteSpace(level) ? "Tous niveaux" : level;
+
+    private static string GetInstructorName(FormationDTO course)
+        => string.IsNullOrWhiteSpace(course.FormateurNom) ? "Non renseigné" : course.FormateurNom;
+
+    private int GetCarouselIndex()
+    {
+        if (_courses.Count <= 2)
+        {
+            return 0;
+        }
+
+        var maxIndex = _courses.Count - 2;
+        return Math.Min(_currentCourseIndex, maxIndex);
+    }
+
+    private void StartCarouselAutoPlay()
+    {
+        _carouselTimer?.Dispose();
+
+        if (_courses.Count <= 1)
+        {
+            return;
+        }
+
+        _carouselTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(() =>
+            {
+                ShowNextCourse();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(4));
+    }
+
+    public void Dispose()
+    {
+        _carouselTimer?.Dispose();
+    }
+
+    private sealed class HomeSummaryViewModel
+    {
+        public int PublishedFormationsCount { get; set; }
+        public int StudentCount { get; set; }
+        public int CategoryCount { get; set; }
+    }
+}

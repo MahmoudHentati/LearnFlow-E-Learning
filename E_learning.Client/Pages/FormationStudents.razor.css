@@ -1,0 +1,105 @@
+.students-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    color: var(--app-text, var(--layout-text, #eef2ff));
+}
+
+.students-header {
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 16px;
+    color: white;
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, .2), transparent 34%),
+        linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.students-header ::deep(.mud-button-root),
+.students-header ::deep(.mud-typography),
+.students-header ::deep(.mud-icon-root) {
+    color: white !important;
+}
+
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    border-radius: 16px;
+    background: var(--app-surface-strong, rgba(255, 255, 255, .08)) !important;
+    border: 1px solid var(--app-border, rgba(255, 255, 255, .1));
+    color: inherit;
+    box-shadow: var(--app-card-shadow, 0 12px 26px rgba(10, 14, 34, .22));
+}
+
+.stat-box {
+    padding: 15px;
+    text-align: center;
+    border-radius: 12px;
+    background: var(--app-surface, var(--layout-surface-strong, rgba(255, 255, 255, .08)));
+    border: 1px solid var(--app-border, var(--layout-border, rgba(255, 255, 255, .1)));
+}
+
+.student-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.progress-container {
+    min-width: 150px;
+}
+
+.students-table {
+    margin-top: 20px;
+    overflow: hidden;
+    border-radius: 16px;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.students-page ::deep(.mud-paper),
+.students-page ::deep(.mud-table),
+.students-page ::deep(.mud-table-container),
+.students-page ::deep(.mud-table-cell),
+.students-page ::deep(.mud-table-head),
+.students-page ::deep(.mud-typography) {
+    color: inherit;
+}
+
+.students-page ::deep(.mud-table),
+.students-page ::deep(.mud-table-container) {
+    background: var(--app-surface-strong, rgba(255, 255, 255, .08)) !important;
+}
+
+.students-page ::deep(.mud-input-root),
+.students-page ::deep(.mud-input-slot) {
+    color: var(--app-text, var(--layout-text, #eef2ff)) !important;
+}
+
+.student-info,
+.student-info > div,
+.students-page ::deep(.mud-table-cell) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+    .students-page {
+        padding: 10px;
+    }
+
+    .stats-container {
+        grid-template-columns: 1fr;
+    }
+
+    .action-buttons,
+    .action-buttons ::deep(.mud-button-root) {
+        width: 100%;
+    }
+}

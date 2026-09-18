@@ -1,0 +1,126 @@
+/* ═══════════════════════════════════════════════
+   Inscription.razor.css  –  Palette Indigo Moderne
+   ═══════════════════════════════════════════════ */
+
+::deep body {
+    background: linear-gradient(135deg, #1a1f3c 0%, #12172e 100%) !important;
+    background-attachment: fixed !important;
+    margin: 0;
+}
+
+.choice-card__icon-svg {
+    font-size: 2rem;
+}
+
+.choice-page {
+    background: linear-gradient(135deg, #1a1f3c 0%, #12172e 100%);
+    min-height: 100vh;
+    font-family: 'Outfit', sans-serif;
+    color: #eef0f8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+/* Back button — fixed top-left, clean */
+.iform-back-row {
+    position: fixed;
+    top: 22px;
+    left: 24px;
+    z-index: 100;
+}
+
+.iform-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255,255,255,0.82);
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: color 0.2s, gap 0.2s;
+}
+
+.iform-back:hover {
+    color: #fff;
+    gap: 10px;
+}
+
+
+.choice-brand {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #ffffff;
+    text-decoration: none;
+    margin-bottom: 50px;
+}
+
+.choice-hero { text-align: center; margin-bottom: 45px; }
+.choice-title { font-size: 2.8rem; font-weight: 800; color: #ffffff; margin-bottom: 12px; }
+.choice-sub { font-size: 1.1rem; color: #8892ae; }
+
+/* Cards */
+.choice-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    max-width: 560px;
+}
+
+.choice-card {
+    background: #232a50;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    padding: 26px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    text-decoration: none;
+    color: #eef0f8;
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+
+.choice-card:hover { transform: translateY(-4px); }
+
+.choice-card--blue:hover {
+    border-color: rgba(91,127,250,0.6);
+    box-shadow: 0 16px 40px rgba(91,127,250,0.2);
+}
+.choice-card--violet:hover {
+    border-color: rgba(160,102,232,0.6);
+    box-shadow: 0 16px 40px rgba(160,102,232,0.2);
+}
+
+.choice-card__icon {
+    font-size: 2.6rem;
+    width: 68px; height: 68px;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.choice-card--blue .choice-card__icon { background: rgba(91,127,250,0.18); }
+.choice-card--violet .choice-card__icon { background: rgba(160,102,232,0.18); }
+
+.choice-card__body { flex: 1; }
+.choice-card__body h2 { font-size: 1.3rem; font-weight: 700; margin: 0 0 5px; color: #ffffff; }
+.choice-card--blue .choice-card__body h2 { color: #8caeff; }
+.choice-card--violet .choice-card__body h2 { color: #c49dff; }
+.choice-card__body p { margin: 0; color: #8892ae; font-size: 0.93rem; }
+
+.choice-card__arrow { font-size: 1.4rem; color: #3d4770; transition: color 0.2s, transform 0.2s; }
+.choice-card__arrow .mud-icon-root { font-size: 1.3rem; }
+.choice-card--blue:hover .choice-card__arrow { color: #8caeff; transform: translateX(5px); }
+.choice-card--violet:hover .choice-card__arrow { color: #c49dff; transform: translateX(5px); }
+
+.choice-footer { margin-top: 36px; color: #4a517a; font-size: 0.9rem; }
+.choice-footer a { color: #8caeff; font-weight: 700; text-decoration: none; }
+.choice-footer a:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+    .choice-title { font-size: 2rem; }
+    .choice-card { padding: 18px; gap: 14px; }
+}

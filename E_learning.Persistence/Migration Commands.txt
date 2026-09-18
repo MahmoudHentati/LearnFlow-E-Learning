@@ -1,0 +1,2 @@
+﻿dotnet ef migrations add "First" --project E_Learning.Persistence --startup-project E_Learning.API
+dotnet ef database update --project E_Learning.Persistence --startup-project E_Learning.Api

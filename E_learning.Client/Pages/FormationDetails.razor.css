@@ -1,0 +1,509 @@
+/* ???????????????????????????????????????????????
+   FormationDetails.razor.css
+   ??????????????????????????????????????????????? */
+
+/* ?? Shared container (mirrors Formations.razor.css) ?? */
+.dashboard-container {
+    background: linear-gradient(135deg, #1a1f3c 0%, #12172e 100%);
+    min-height: 100vh;
+    font-family: 'Outfit', sans-serif;
+    color: #eef0f8;
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* ?? Back arrow — fixed top-left, clean ?? */
+.iform-back-row {
+    position: fixed;
+    top: 13px; /* Plus bas (au lieu de 22px) */
+    left: 20px; /* Plus à droite (au lieu de 24px) */
+    z-index: 100;
+}
+
+.iform-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255,255,255,0.82);
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: color 0.2s, gap 0.2s;
+}
+
+    .iform-back:hover {
+        color: #fff;
+        gap: 10px;
+    }
+
+@media (max-width: 576px) {
+    .iform-back-row {
+        top: 20px;
+        left: 20px;
+    }
+}
+
+/* Override Light mode */
+.theme-light .iform-back {
+    color: rgba(20, 32, 68, 0.65) !important;
+}
+
+    .theme-light .iform-back:hover {
+        color: #142044 !important;
+    }
+
+
+.dash-layout {
+    display: flex;
+    flex: 1;
+    padding-top: 16px;
+}
+
+/* ?? Loading / alert wrappers ?? */
+.fd-loading-wrap,
+.fd-alert-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4rem 2rem;
+}
+
+/* ??????????????????????????????
+   SIDEBAR  — slim, uncluttered
+?????????????????????????????? */
+.dash-sidebar {
+    width: 210px;
+    flex-shrink: 0;
+    background: transparent;
+    padding: 28px 18px;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sidebar-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #6872a0;
+    margin: 0 0 10px 0;
+}
+
+/* ?? Back button — icon only ?? */
+.fd-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #b0b8d9;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
+    flex-shrink: 0;
+}
+
+    .fd-back-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .fd-back-btn:hover {
+        background: rgba(124, 158, 248, 0.15);
+        color: #fff;
+        border-color: rgba(124, 158, 248, 0.35);
+        transform: translateX(-2px);
+    }
+
+/* Sidebar section */
+.fd-sidebar-section {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Meta list */
+.fd-meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fd-meta-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+}
+
+.fd-meta-key {
+    font-size: 0.72rem;
+    color: #6872a0;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.fd-meta-val {
+    font-size: 0.9rem;
+    color: #d0d8f0;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.fd-badge {
+    display: inline-block;
+    background: rgba(124,158,248,0.12);
+    color: #7c9ef8;
+    padding: 2px 9px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    width: fit-content;
+}
+
+/* ??????????????????????????????
+   MAIN
+?????????????????????????????? */
+.dash-main {
+    flex: 1;
+    padding: 28px 36px 48px;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+/* ?? Hero ?? */
+.fd-hero {
+    padding: 28px 32px;
+    border-radius: 20px;
+    background: radial-gradient(circle at top right, rgba(93,125,255,0.22), transparent 30%), linear-gradient(135deg, rgba(18,30,68,0.96), rgba(37,58,118,0.82));
+    border: 1px solid rgba(134,162,255,0.18);
+    color: #f5f7ff;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.fd-hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fd-hero .course-category {
+    font-size: 0.73rem;
+    background: rgba(124,158,248,0.18);
+    color: #a8c0ff;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    display: inline-block;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    width: fit-content;
+}
+
+.fd-hero-title {
+    margin: 0;
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1.15;
+    color: #fff;
+}
+
+.fd-hero-desc {
+    margin: 0;
+    font-size: 0.97rem;
+    color: rgba(230,237,255,0.78);
+    line-height: 1.65;
+    max-width: 740px;
+}
+
+/* Hero stats row — horizontal strip */
+.fd-hero-stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.fd-hero-stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.fd-hero-stat-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+}
+
+.fd-hero-stat-lbl {
+    font-size: 0.8rem;
+    color: rgba(200,215,255,0.72);
+    font-weight: 500;
+}
+
+/* ?? Cards ?? */
+.fd-card {
+    background: rgba(35,42,80,0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    padding: 22px 26px;
+    transition: background 0.2s;
+}
+
+    .fd-card:hover {
+        background: rgba(35,42,80,0.62);
+    }
+
+.fd-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.fd-card-kicker {
+    font-size: 0.71rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6872a0;
+    flex-shrink: 0;
+}
+
+.fd-card-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #eef0f8;
+    flex: 1;
+}
+
+.results-count {
+    color: #8892ae;
+    font-size: 0.88rem;
+    margin-left: auto;
+}
+
+/* ?? Access card ?? */
+.fd-access-card {
+    border-left: 3px solid #5b7ffa;
+}
+
+.fd-access-desc {
+    font-size: 0.95rem;
+    color: #b0b8d9;
+    margin: 0 0 16px;
+    line-height: 1.6;
+}
+
+.fd-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+/* ?? Enroll button ?? */
+.btn-enroll {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #5b7ffa;
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    text-decoration: none;
+}
+
+    .btn-enroll:hover {
+        background: #4a6ef0;
+        transform: translateY(-1px);
+    }
+
+    .btn-enroll:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+.btn-enroll--outline {
+    background: transparent;
+    border: 1.5px solid #5b7ffa;
+    color: #7c9ef8;
+}
+
+    .btn-enroll--outline:hover {
+        background: rgba(91,127,250,0.12);
+        transform: translateY(-1px);
+    }
+
+/* ?? Prerequisites ?? */
+.fd-prereq-text {
+    margin: 0;
+    font-size: 0.97rem;
+    color: #c0c8e0;
+    line-height: 1.7;
+}
+
+/* ?? Modules ?? */
+.fd-modules-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fd-module-panel {
+    border-radius: 13px !important;
+    border: 1px solid rgba(255,255,255,0.07) !important;
+    background: rgba(255,255,255,0.04) !important;
+    overflow: hidden;
+}
+
+.dashboard-container ::deep(.fd-module-panel .mud-expand-panel-header) {
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.03);
+    font-weight: 600;
+    color: #eef0f8;
+}
+
+.dashboard-container ::deep(.fd-module-panel .mud-expand-panel-content) {
+    padding: 10px 16px 14px;
+}
+
+.fd-module-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fd-module-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fd-module-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(93,125,255,0.12);
+    border: 1px solid rgba(93,125,255,0.2);
+    color: #7c9ef8;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.fd-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+/* ?? Empty state ?? */
+.fd-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 2.5rem 2rem;
+    color: #6872a0;
+    text-align: center;
+}
+
+    .fd-empty svg {
+        width: 44px;
+        height: 44px;
+        opacity: 0.4;
+    }
+
+    .fd-empty p {
+        margin: 0;
+        font-size: 0.93rem;
+    }
+
+/* ??????????????????????????????
+   RESPONSIVE
+?????????????????????????????? */
+@media (max-width: 860px) {
+    .dash-layout {
+        flex-direction: column;
+    }
+
+    .dash-sidebar {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 16px 20px 0;
+        margin-top: 0;
+        gap: 12px;
+    }
+
+    .fd-sidebar-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .fd-meta-list {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .sidebar-title {
+        display: none;
+    }
+
+    .dash-main {
+        padding: 16px 16px 32px;
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 560px) {
+    .fd-hero {
+        padding: 20px 16px;
+    }
+
+    .fd-hero-title {
+        font-size: 1.45rem;
+    }
+
+    .fd-card {
+        padding: 16px 14px;
+    }
+
+    .fd-hero-stats {
+        gap: 8px;
+    }
+
+    .fd-hero-stat {
+        padding: 6px 12px;
+    }
+}

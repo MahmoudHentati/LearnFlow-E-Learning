@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.14" />
+  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+		<PackageReference Include="PuppeteerSharp" Version="20.2.2" />
+	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\E_Learning.Domain\E_Learning.Domain.csproj" />
+    <ProjectReference Include="..\E_learning.Interfaces\E_learning.Interfaces.csproj" />
+    <ProjectReference Include="..\E_learning.Models\E_learning.Models.csproj" />
+    <ProjectReference Include="..\E_learning.Persistence\E_learning.Persistence.csproj" />
+    <ProjectReference Include="..\E_learning.Repositories\E_learning.Repositories.csproj" />
+  </ItemGroup>
+
+</Project>

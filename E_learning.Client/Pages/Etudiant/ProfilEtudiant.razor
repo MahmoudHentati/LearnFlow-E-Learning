@@ -1,0 +1,120 @@
+@page "/etudiant-profil"
+@attribute [Authorize(Roles = "Student")]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ITokenStorageService TokenStorage
+
+<PageTitle>Mon Profil - EduLearn</PageTitle>
+
+<div class="profil-page">
+
+    <div class="profil-hero">
+        <div class="hero-bg-shapes">
+            <div class="bg-shape shape-a"></div>
+            <div class="bg-shape shape-b"></div>
+        </div>
+        <div class="avatar-wrapper">
+            <div class="avatar-circle">@_initial</div>
+            <div class="avatar-badge">
+                <MudIcon Icon="@Icons.Material.Filled.School" Style="font-size:14px;" />
+            </div>
+        </div>
+        <h1 class="profil-name">@_userName</h1>
+        <span class="profil-role-badge">Étudiant</span>
+    </div>
+
+    <div class="profil-body">
+
+        <!-- Informations personnelles -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <MudIcon Icon="@Icons.Material.Filled.Person" />
+                <span>Informations personnelles</span>
+            </div>
+            <div class="info-grid">
+                <div class="info-field">
+                    <label>Nom complet</label>
+                    <div class="info-value">@(_userName ?? "—")</div>
+                </div>
+                <div class="info-field">
+                    <label>Adresse e-mail</label>
+                    <div class="info-value">@(_email ?? "—")</div>
+                </div>
+                <div class="info-field">
+                    <label>Rôle</label>
+                    <div class="info-value role-chip">Étudiant</div>
+                </div>
+                <div class="info-field">
+                    <label>Statut du compte</label>
+                    <div class="info-value status-active">
+                        <span class="status-dot"></span>
+                        Actif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques rapides -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <MudIcon Icon="@Icons.Material.Filled.BarChart" />
+                <span>Aperçu de mon activité</span>
+            </div>
+            <div class="stats-row">
+                <div class="stat-pill">
+                    <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" />
+                    <div>
+                        <strong>Formations</strong>
+                        <span>Consultez "Mes formations"</span>
+                    </div>
+                </div>
+                <div class="stat-pill">
+                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" />
+                    <div>
+                        <strong>Évaluations</strong>
+                        <span>Consultez "Mes évaluations"</span>
+                    </div>
+                </div>
+                <div class="stat-pill">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" />
+                    <div>
+                        <strong>Tableau de bord</strong>
+                        <span>Voir la progression</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="quick-links">
+            <a href="/etudiant-parametres" class="quick-link-btn">
+                <MudIcon Icon="@Icons.Material.Filled.Settings" />
+                Modifier le mot de passe
+            </a>
+            <a href="/etudiant-dashboard" class="quick-link-btn secondary">
+                <MudIcon Icon="@Icons.Material.Filled.Dashboard" />
+                Retour au tableau de bord
+            </a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _userName = "Utilisateur";
+    private string _email = "";
+    private string _initial = "U";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            _userName = user.Identity.Name ?? "Utilisateur";
+            _email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+            _initial = !string.IsNullOrWhiteSpace(_userName) && _userName != "Utilisateur"
+                ? _userName.Substring(0, 1).ToUpper()
+                : (!string.IsNullOrWhiteSpace(_email) ? _email.Substring(0, 1).ToUpper() : "U");
+        }
+    }
+}

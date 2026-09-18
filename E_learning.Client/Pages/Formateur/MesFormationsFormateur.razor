@@ -1,0 +1,224 @@
+@page "/formateur-mes-formations"
+@attribute [Authorize(Roles = "Instructor")]
+@using E_learning.Models.Helpers
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<PageTitle>Mes formations</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.School" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Class="formateur-title">Mes formations</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="formateur-subtitle ml-11">Gestion complète de vos formations publiées et en préparation</MudText>
+        </div>
+        <div class="d-flex align-center gap-4">
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @FilteredFormations.Count formation(s)
+            </MudChip>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog" Class="py-2 px-4" Style="border-radius:4px;">
+                CREER UNE FORMATION
+            </MudButton>
+        </div>
+    </div>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" />
+                <MudText Typo="Typo.button">CRITERES DE RECHERCHE</MudText>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => _searchText = string.Empty)" Color="Color.Secondary">
+                    REINITIALISER
+                </MudButton>
+            }
+        </div>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_searchText" Placeholder="Rechercher titre, categorie, statut ou description..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="border-radius:4px;" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="ma-4">@_errorMessage</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="FilteredFormations" Hover="true" Dense="true" Striped="true" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+                <HeaderContent>
+                    <MudTh>Titre</MudTh>
+                    <MudTh>Catégorie</MudTh>
+                    <MudTh>Date</MudTh>
+                    <MudTh>Modules</MudTh>
+                    <MudTh>Statut</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Titre</MudTd>
+                    <MudTd>@GetCategoryName(context)</MudTd>
+                    <MudTd>@(context.DateCreation?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
+                    <MudTd>@(context.Modules?.Count ?? 0)</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Variant="Variant.Filled" Size="Size.Small" Color="@GetStatusColor(context.Statut)">
+                            @FormationStatusHelper.GetDisplayLabel(context.Statut)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small" OnClick="@(() => NavigationManager.NavigateTo($"/formateur/formations/{context.Id}"))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="@(() => OpenEditDialog(context.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteFormation(context.Id, context.Titre))" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Aucune formation trouvée.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Lignes par page:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .formateur-title {
+        font-weight: 700;
+        color: var(--app-text, #eef2ff);
+    }
+
+    .formateur-subtitle {
+        color: var(--app-muted, #95a3c8);
+    }
+</style>
+
+@code {
+    private List<FormationDTO> _formations = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchText = string.Empty;
+
+    private List<FormationDTO> FilteredFormations => _formations
+        .Where(formation =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || Contains(formation.Titre, _searchText)
+            || Contains(formation.Description, _searchText)
+            || Contains(FormationStatusHelper.GetDisplayLabel(formation.Statut), _searchText)
+            || Contains(GetCategoryName(formation), _searchText))
+        .OrderByDescending(formation => formation.DateCreation)
+        .ThenBy(formation => formation.Titre)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _formations = await Http.GetFromJsonAsync<List<FormationDTO>>("api/formation/me") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger vos formations.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<FormateurFormationEditorDialog>("Nouvelle Formation", options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(int id)
+    {
+        var parameters = new DialogParameters<FormateurFormationEditorDialog> { { x => x.FormationId, id } };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<FormateurFormationEditorDialog>("Modifier Formation", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteFormation(int formationId, string? formationTitle)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Confirmation",
+            $"Voulez-vous vraiment supprimer la formation '{formationTitle}' ?",
+            yesText: "Supprimer",
+            cancelText: "Annuler");
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/formation/{formationId}");
+            if (!response.IsSuccessStatusCode)
+            {
+                _errorMessage = "Suppression impossible.";
+                return;
+            }
+
+            _formations.RemoveAll(formation => formation.Id == formationId);
+        }
+        catch
+        {
+            _errorMessage = "Erreur pendant la suppression.";
+        }
+    }
+
+    private static string GetCategoryName(FormationDTO? formation)
+        => formation?.SousCategorie?.Categorie?.Nom
+           ?? formation?.SousCategorie?.Nom
+           ?? "Sans catégorie";
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static bool Contains(string? value, string search)
+        => value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static Color GetStatusColor(string? status)
+        => FormationStatusHelper.Normalize(status).ToLowerInvariant() switch
+        {
+            "active" => Color.Success,
+            "inactive" => Color.Warning,
+            "archivee" => Color.Default,
+            _ => Color.Info
+        };
+}

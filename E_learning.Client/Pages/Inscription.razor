@@ -1,0 +1,68 @@
+@page "/inscription"
+@attribute [AllowAnonymous]
+
+<PageTitle>Inscription – EduLearn</PageTitle>
+
+<div class="choice-page">
+    <div class="iform-back-row">
+        <a href="/" class="iform-back">←</a>
+    </div>
+    <div class="choice-hero">
+        <h1 class="choice-title">Rejoindre EduLearn</h1>
+        <p class="choice-sub">Quel est votre profil ?</p>
+    </div>
+
+    <div class="choice-cards">
+
+        <!-- Carte Étudiant -->
+        <a href="@BuildProfileUrl("/inscription/etudiant")" class="choice-card choice-card--blue">
+            <div class="choice-card__icon">
+                <MudIcon Icon="@Icons.Material.Filled.School" Class="choice-card__icon-svg" />
+            </div>
+            <div class="choice-card__body">
+                <h2>Je suis Étudiant</h2>
+                <p>Accédez à des formations et développez vos compétences.</p>
+            </div>
+            <div class="choice-card__arrow">
+                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" />
+            </div>
+        </a>
+
+        <!-- Carte Formateur -->
+        <a href="@BuildProfileUrl("/inscription/formateur")" class="choice-card choice-card--violet">
+            <div class="choice-card__icon">
+                <MudIcon Icon="@Icons.Material.Filled.CoPresent" Class="choice-card__icon-svg" />
+            </div>
+            <div class="choice-card__body">
+                <h2>Je suis Formateur</h2>
+                <p>Partagez votre expertise et créez vos propres formations.</p>
+            </div>
+            <div class="choice-card__arrow">
+                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" />
+            </div>
+        </a>
+
+    </div>
+
+    <p class="choice-footer">Déjà inscrit ? <a href="@BuildProfileUrl("/login")">Se connecter</a></p>
+
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "formationId")]
+    public int? FormationId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private string BuildProfileUrl(string path)
+    {
+        if (FormationId.GetValueOrDefault() <= 0)
+        {
+            return path;
+        }
+
+        var returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? $"/etudiant/formations/{FormationId}" : ReturnUrl;
+        return $"{path}?formationId={FormationId}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+}

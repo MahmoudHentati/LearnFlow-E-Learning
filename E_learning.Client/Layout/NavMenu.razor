@@ -1,0 +1,46 @@
+<MudNavMenu Class="d-flex flex-column flex-grow-1">
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <AuthorizeView Context="authState">
+        <Authorized>
+            @if (authState.User.IsInRole(AppRoles.SuperAdmin) || authState.User.IsInRole(AppRoles.Admin))
+            {
+                <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.AdminPanelSettings">Admin Dashboard</MudNavLink>
+                <MudNavLink Href="/admin/users/admins" Icon="@Icons.Material.Filled.AdminPanelSettings">Administrateurs</MudNavLink>
+                <MudNavLink Href="/admin/users/students" Icon="@Icons.Material.Filled.School">Étudiants</MudNavLink>
+                <MudNavLink Href="/admin/users/instructors" Icon="@Icons.Material.Filled.CoPresent">Formateurs</MudNavLink>
+                <MudNavLink Href="/admin/formations" Icon="@Icons.Material.Filled.MenuBook"> Formations</MudNavLink>
+                <MudNavLink Href="/admin/categories" Icon="@Icons.Material.Filled.Category">Catégories</MudNavLink>
+                <MudNavLink Href="/admin/sous-categories" Icon="@Icons.Material.Filled.AccountTree">Sous-catégories</MudNavLink>
+            }
+
+            @if (authState.User.IsInRole(AppRoles.Student))
+            {
+                <MudNavLink Href="/etudiant-dashboard" Icon="@Icons.Material.Filled.Dashboard">Tableau de bord</MudNavLink>
+                <MudNavLink Href="/formations" Icon="@Icons.Material.Filled.Category">Catalogue des formations</MudNavLink>
+                <MudNavLink Href="/etudiant-mes-formations" Icon="@Icons.Material.Filled.School">Mes formations</MudNavLink>
+                <MudNavLink Href="/etudiant-mes-evaluations" Icon="@Icons.Material.Filled.FactCheck">Mes évaluations</MudNavLink>
+
+                <MudNavGroup Title="Mon compte" Icon="@Icons.Material.Filled.ManageAccounts" Expanded="true" Class="mt-auto">
+                    <MudNavLink Href="/etudiant-profil" Icon="@Icons.Material.Filled.Person">Mon profil</MudNavLink>
+                    <MudNavLink Href="/etudiant-parametres" Icon="@Icons.Material.Filled.Settings">Paramètres</MudNavLink>
+                </MudNavGroup>
+            }
+
+            @if (authState.User.IsInRole(AppRoles.Instructor))
+            {
+                <MudNavLink Href="/formateur-dashboard" Icon="@Icons.Material.Filled.Dashboard">Tableau de bord</MudNavLink>
+                <MudNavLink Href="/formateur-mes-formations" Icon="@Icons.Material.Filled.Class">Mes formations</MudNavLink>
+                <MudNavLink Href="/formateur-mes-evaluations" Icon="@Icons.Material.Filled.RateReview">Mes évaluations</MudNavLink>
+                <MudNavLink Href="/formateur-mes-tests" Icon="@Icons.Material.Filled.AssignmentTurnedIn">Mes tests</MudNavLink>
+
+                <MudNavGroup Title="Mon compte" Icon="@Icons.Material.Filled.ManageAccounts" Expanded="true" Class="mt-auto">
+                    <MudNavLink Href="/formateur-profil" Icon="@Icons.Material.Filled.Person">Mon profil</MudNavLink>
+                    <MudNavLink Href="/formateur-parametres" Icon="@Icons.Material.Filled.Settings">Paramètres</MudNavLink>
+                </MudNavGroup>
+            }
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="/login" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudNavMenu>

@@ -1,0 +1,320 @@
+@inject HttpClient Http
+@using E_learning.Models.Helpers
+
+<MudDialog>
+    <DialogContent>
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_errorMessage</MudAlert>
+        }
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.Titre" Label="Titre" Variant="Variant.Outlined" Required="true" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="CategorieDTO"
+                                 Label="Catégorie"
+                                 Variant="Variant.Outlined"
+                                 FullWidth="true"
+                                 Dense="true"
+                                 Clearable="true"
+                                 ToStringFunc="@(c => c?.Nom ?? string.Empty)"
+                                 SearchFunc="SearchCategoriesAsync"
+                                 Value="_selectedCategorie"
+                                 ValueChanged="OnCategorieChangedAsync"
+                                 ResetValueOnEmptyText="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="SousCategorieDTO"
+                                 Label="Sous-catégorie"
+                                 Variant="Variant.Outlined"
+                                 FullWidth="true"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Disabled="@(_selectedCategorie is null)"
+                                 ToStringFunc="@(s => s?.Nom ?? string.Empty)"
+                                 SearchFunc="SearchSousCategoriesAsync"
+                                 Value="_selectedSousCategorie"
+                                 ValueChanged="OnSousCategorieChanged"
+                                 ResetValueOnEmptyText="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="AdminUserDto"
+                                 Label="Formateur"
+                                 Variant="Variant.Outlined"
+                                 FullWidth="true"
+                                 Dense="true"
+                                 Clearable="true"
+                                 ToStringFunc="GetInstructorDisplayName"
+                                 SearchFunc="SearchInstructorsAsync"
+                                 Value="_selectedInstructor"
+                                 ValueChanged="OnInstructorChanged"
+                                 ResetValueOnEmptyText="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="_model.Difficulte" Label="Difficulté" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var option in DifficultyOptions)
+                    {
+                        <MudSelectItem Value="@option">@option</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="_model.Statut" Label="Statut" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var option in StatusOptions)
+                    {
+                        <MudSelectItem Value="@option">@option</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudDatePicker @bind-Date="_model.DateCreation" Label="Date de création" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_model.Prerequis" Label="Prérequis" Variant="Variant.Outlined" Lines="2" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_model.Description" Label="Description" Variant="Variant.Outlined" Lines="3" FullWidth="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Disabled="_isSaving" OnClick="Cancel">Annuler</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSaving" OnClick="SaveAsync">
+            @(_isSaving ? "Enregistrement..." : "Enregistrer")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int? FormationId { get; set; }
+
+    private FormationDTO _model = new()
+    {
+        DateCreation = DateTime.UtcNow
+    };
+
+    private bool _isSaving;
+    private string? _errorMessage;
+    private static readonly string[] DifficultyOptions = ["Débutant", "Intermédiaire", "Avancé"];
+    private static readonly string[] StatusOptions = FormationStatusHelper.OrderedValues;
+    private List<CategorieDTO> _categories = [];
+    private List<SousCategorieDTO> _sousCategories = [];
+    private List<AdminUserDto> _instructors = [];
+    private CategorieDTO? _selectedCategorie;
+    private SousCategorieDTO? _selectedSousCategorie;
+    private AdminUserDto? _selectedInstructor;
+    private bool IsEdit => FormationId.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSelectionsAsync();
+
+        _model.Difficulte = string.IsNullOrWhiteSpace(_model.Difficulte) ? DifficultyOptions[0] : _model.Difficulte;
+        _model.Statut = FormationStatusHelper.NormalizeOrDefault(_model.Statut, StatusOptions[0]);
+
+        if (!IsEdit)
+        {
+            return;
+        }
+
+        try
+        {
+            var loaded = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{FormationId.GetValueOrDefault()}");
+            if (loaded is null)
+            {
+                _errorMessage = "Formation introuvable.";
+                return;
+            }
+
+            _model = loaded;
+            _model.Statut = FormationStatusHelper.NormalizeOrDefault(_model.Statut, StatusOptions[0]);
+            if (_model.SousCategorie?.Categorie is not null)
+            {
+                _selectedCategorie = _categories.FirstOrDefault(c => c.Id == _model.SousCategorie.Categorie.Id);
+            }
+
+            if (_model.SousCategorie is not null)
+            {
+                _selectedSousCategorie = _sousCategories.FirstOrDefault(s => s.Id == _model.SousCategorie.Id);
+                _model.SousCategorieId = _model.SousCategorie.Id;
+
+                if (_selectedCategorie is null && _selectedSousCategorie is not null)
+                {
+                    _selectedCategorie = _categories.FirstOrDefault(c => c.Id == _selectedSousCategorie.CategorieId);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(_model.FormateurId))
+            {
+                _selectedInstructor = _instructors.FirstOrDefault(i => i.Id == _model.FormateurId);
+            }
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger la formation.";
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Titre))
+        {
+            _errorMessage = "Le titre est obligatoire.";
+            return;
+        }
+
+        if (_model.SousCategorieId <= 0)
+        {
+            _errorMessage = "La sous-catégorie est obligatoire.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_model.FormateurId))
+        {
+            _errorMessage = "Le formateur est obligatoire.";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            HttpResponseMessage response;
+            if (IsEdit)
+            {
+                response = await Http.PutAsJsonAsync($"api/formation/{_model.Id}", _model);
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/formation", _model);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _errorMessage = "L'enregistrement a échoué.";
+                return;
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch
+        {
+            _errorMessage = "Erreur pendant l'enregistrement.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task LoadSelectionsAsync()
+    {
+        try
+        {
+            _categories = await Http.GetFromJsonAsync<List<CategorieDTO>>("api/categories") ?? [];
+            _sousCategories = await Http.GetFromJsonAsync<List<SousCategorieDTO>>("api/souscategories") ?? [];
+            _instructors = await Http.GetFromJsonAsync<List<AdminUserDto>>("api/users/by-role/instructor") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger les données du formulaire.";
+        }
+    }
+
+    private Task<IEnumerable<CategorieDTO>> SearchCategoriesAsync(string value, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IEnumerable<CategorieDTO> query = _categories;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            query = query.Where(c => c.Nom.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult<IEnumerable<CategorieDTO>>(query.OrderBy(c => c.Nom).ToList());
+    }
+
+    private Task<IEnumerable<SousCategorieDTO>> SearchSousCategoriesAsync(string value, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var query = _sousCategories.AsEnumerable();
+
+        if (_selectedCategorie is not null)
+        {
+            query = query.Where(s => s.CategorieId == _selectedCategorie.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            query = query.Where(s => s.Nom.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult<IEnumerable<SousCategorieDTO>>(query.OrderBy(s => s.Nom).ToList());
+    }
+
+    private async Task OnCategorieChangedAsync(CategorieDTO? categorie)
+    {
+        _selectedCategorie = categorie;
+
+        if (_selectedSousCategorie is not null && (categorie is null || _selectedSousCategorie.CategorieId != categorie.Id))
+        {
+            _selectedSousCategorie = null;
+            _model.SousCategorieId = 0;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnSousCategorieChanged(SousCategorieDTO? sousCategorie)
+    {
+        _selectedSousCategorie = sousCategorie;
+        _model.SousCategorieId = sousCategorie?.Id ?? 0;
+    }
+
+    private Task<IEnumerable<AdminUserDto>> SearchInstructorsAsync(string value, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IEnumerable<AdminUserDto> query = _instructors;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            query = query.Where(i =>
+                GetInstructorDisplayName(i).Contains(value, StringComparison.OrdinalIgnoreCase) ||
+                i.Email.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult<IEnumerable<AdminUserDto>>(query
+            .OrderBy(i => i.LastName)
+            .ThenBy(i => i.FirstName)
+            .ToList());
+    }
+
+    private static string GetInstructorDisplayName(AdminUserDto? instructor)
+    {
+        if (instructor is null)
+        {
+            return string.Empty;
+        }
+
+        var fullName = $"{instructor.FirstName} {instructor.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? instructor.Email : $"{fullName} ({instructor.Email})";
+    }
+
+    private void OnInstructorChanged(AdminUserDto? instructor)
+    {
+        _selectedInstructor = instructor;
+        _model.FormateurId = instructor?.Id ?? string.Empty;
+    }
+}

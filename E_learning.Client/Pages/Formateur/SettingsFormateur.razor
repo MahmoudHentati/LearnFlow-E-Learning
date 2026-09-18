@@ -1,0 +1,275 @@
+@page "/formateur-parametres"
+@attribute [Authorize(Roles = "Instructor")]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Paramètres - EduLearn</PageTitle>
+
+<div class="settings-page">
+
+    <div class="settings-header">
+        <div class="settings-header-icon">
+            <MudIcon Icon="@Icons.Material.Filled.Settings" />
+        </div>
+        <div>
+            <h1>Paramètres du compte</h1>
+            <p>Gérez la sécurité et les préférences de votre espace formateur</p>
+        </div>
+    </div>
+
+    <div class="settings-grid">
+
+        <!-- ── Changer mot de passe ── -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <MudIcon Icon="@Icons.Material.Filled.Lock" />
+                <span>Changer le mot de passe</span>
+            </div>
+
+            @if (_pwdSuccess)
+            {
+                <div class="alert-success">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                    Mot de passe mis à jour avec succès !
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(_pwdError))
+            {
+                <div class="alert-error">
+                    <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" />
+                    @_pwdError
+                </div>
+            }
+
+            <div class="form-fields">
+                <div class="form-field">
+                    <label for="current-pwd-f">Mot de passe actuel</label>
+                    <div class="input-wrapper">
+                        <MudIcon Icon="@Icons.Material.Filled.VpnKey" class="input-icon" />
+                        <input id="current-pwd-f"
+                               type="@(_showCurrentPwd ? "text" : "password")"
+                               class="form-input"
+                               placeholder="••••••••"
+                               @bind="_currentPassword" />
+                        <button type="button" class="eye-btn" @onclick="() => _showCurrentPwd = !_showCurrentPwd">
+                            <MudIcon Icon="@(_showCurrentPwd ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" />
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label for="new-pwd-f">Nouveau mot de passe</label>
+                    <div class="input-wrapper">
+                        <MudIcon Icon="@Icons.Material.Filled.Lock" class="input-icon" />
+                        <input id="new-pwd-f"
+                               type="@(_showNewPwd ? "text" : "password")"
+                               class="form-input"
+                               placeholder="••••••••"
+                               @bind="_newPassword" />
+                        <button type="button" class="eye-btn" @onclick="() => _showNewPwd = !_showNewPwd">
+                            <MudIcon Icon="@(_showNewPwd ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" />
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_newPassword))
+                    {
+                        <div class="pwd-strength">
+                            <div class="strength-bar">
+                                <div class="strength-fill @GetStrengthClass()" style="width: @(GetStrengthPercent())%"></div>
+                            </div>
+                            <span class="strength-label @GetStrengthClass()">@GetStrengthLabel()</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="form-field">
+                    <label for="confirm-pwd-f">Confirmer le nouveau mot de passe</label>
+                    <div class="input-wrapper">
+                        <MudIcon Icon="@Icons.Material.Filled.LockReset" class="input-icon" />
+                        <input id="confirm-pwd-f"
+                               type="@(_showConfirmPwd ? "text" : "password")"
+                               class="form-input"
+                               placeholder="••••••••"
+                               @bind="_confirmPassword" />
+                        <button type="button" class="eye-btn" @onclick="() => _showConfirmPwd = !_showConfirmPwd">
+                            <MudIcon Icon="@(_showConfirmPwd ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" />
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_confirmPassword) && _newPassword != _confirmPassword)
+                    {
+                        <span class="field-hint error">Les mots de passe ne correspondent pas.</span>
+                    }
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button class="btn-primary @(_isSaving ? "loading" : "")"
+                        @onclick="ChangePasswordAsync"
+                        disabled="@_isSaving">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <span>Enregistrement…</span>
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Save" />
+                        <span>Enregistrer le mot de passe</span>
+                    }
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Informations du compte ── -->
+        <div class="settings-card info-only">
+            <div class="settings-card-header">
+                <MudIcon Icon="@Icons.Material.Filled.Info" />
+                <span>Infos du compte</span>
+            </div>
+            <div class="account-info-list">
+                <div class="account-info-item">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" />
+                    <div>
+                        <span class="info-label">Nom d'utilisateur</span>
+                        <span class="info-val">@_userName</span>
+                    </div>
+                </div>
+                <div class="account-info-item">
+                    <MudIcon Icon="@Icons.Material.Filled.Email" />
+                    <div>
+                        <span class="info-label">Adresse e-mail</span>
+                        <span class="info-val">@_email</span>
+                    </div>
+                </div>
+                <div class="account-info-item">
+                    <MudIcon Icon="@Icons.Material.Filled.CoPresent" />
+                    <div>
+                        <span class="info-label">Rôle</span>
+                        <span class="info-val role-instructor">Formateur</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="security-tips">
+                <p class="tips-title"><MudIcon Icon="@Icons.Material.Filled.Shield" /> Conseils de sécurité</p>
+                <ul>
+                    <li>Utilisez au moins 8 caractères</li>
+                    <li>Mélangez majuscules, chiffres et symboles</li>
+                    <li>N'utilisez pas le même mot de passe ailleurs</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private string _userName = "Utilisateur";
+    private string _email = "";
+
+    private string _currentPassword = "";
+    private string _newPassword = "";
+    private string _confirmPassword = "";
+    private bool _showCurrentPwd;
+    private bool _showNewPwd;
+    private bool _showConfirmPwd;
+    private bool _isSaving;
+    private bool _pwdSuccess;
+    private string? _pwdError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            _userName = user.Identity.Name ?? "Utilisateur";
+            _email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        _pwdSuccess = false;
+        _pwdError = null;
+
+        if (string.IsNullOrWhiteSpace(_currentPassword) ||
+            string.IsNullOrWhiteSpace(_newPassword) ||
+            string.IsNullOrWhiteSpace(_confirmPassword))
+        {
+            _pwdError = "Veuillez remplir tous les champs.";
+            return;
+        }
+
+        if (_newPassword != _confirmPassword)
+        {
+            _pwdError = "Les mots de passe ne correspondent pas.";
+            return;
+        }
+
+        if (_newPassword.Length < 8)
+        {
+            _pwdError = "Le mot de passe doit contenir au moins 8 caractères.";
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var payload = new
+            {
+                CurrentPassword = _currentPassword,
+                NewPassword = _newPassword
+            };
+            var response = await Http.PostAsJsonAsync("api/auth/change-password", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                _pwdSuccess = true;
+                _currentPassword = _newPassword = _confirmPassword = "";
+                Snackbar.Add("Mot de passe mis à jour !", Severity.Success);
+            }
+            else
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                _pwdError = string.IsNullOrWhiteSpace(msg)
+                    ? "Erreur lors du changement de mot de passe."
+                    : msg;
+            }
+        }
+        catch
+        {
+            _pwdError = "Une erreur est survenue. Veuillez réessayer.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private int GetStrengthPercent()
+    {
+        if (string.IsNullOrEmpty(_newPassword)) return 0;
+        var score = 0;
+        if (_newPassword.Length >= 8) score += 25;
+        if (_newPassword.Any(char.IsUpper)) score += 25;
+        if (_newPassword.Any(char.IsDigit)) score += 25;
+        if (_newPassword.Any(c => !char.IsLetterOrDigit(c))) score += 25;
+        return score;
+    }
+
+    private string GetStrengthClass() => GetStrengthPercent() switch
+    {
+        <= 25 => "weak",
+        <= 50 => "fair",
+        <= 75 => "good",
+        _ => "strong"
+    };
+
+    private string GetStrengthLabel() => GetStrengthPercent() switch
+    {
+        <= 25 => "Faible",
+        <= 50 => "Moyen",
+        <= 75 => "Bon",
+        _ => "Excellent"
+    };
+}

@@ -1,0 +1,197 @@
+@startuml
+skinparam handwritten false
+skinparam monochrome false
+skinparam shadowing true
+skinparam class {
+    BackgroundColor White
+    ArrowColor #2C3E50
+    BorderColor #2C3E50
+    FontColor #2C3E50
+    HeaderBackgroundColor #ECF0F1
+}
+
+abstract class Utilisateur {
+    + id: int
+    + nom: string
+    + email: string
+    + mot_de_pas_hash: string
+    + date_inscription: datetime
+    + est_actif: boolean
+    + est_banni: boolean
+    + s_authentifier()
+    + modifier_profil()
+}
+
+class Administrateur {
+    + valider_formateur(formateur_id)
+    + bannir_utilisateur(user_id)
+    + gerer_categories()
+    + moderer_formations()
+}
+
+class Formateur {
+    + infos_professionnelles: text
+    + specialite: string
+    + est_valide: boolean
+    + creer_formation()
+    + ajouter_contenu()
+    + noter_test(rendu_id, note, commentaire)
+}
+
+class Etudiant {
+    + niveau_etudes: string
+    + dernier_diplome: string
+    + s_inscrire_formation(formation_id)
+    + passer_quiz(quiz_id)
+    + soumettre_test(test_id)
+    + laisser_avis(formation_id)
+}
+
+class Categorie {
+    + id: int
+    + nom: string
+    + description: text
+}
+
+class SousCategorie {
+    + id: int
+    + nom: string
+    + description: text
+}
+
+class Formation {
+    + id: int
+    + titre: string
+    + description: text
+    + prerequis: text
+    + difficulte: string
+    + date_creation: datetime
+    + statut: StatutFormation
+    + calculer_moyenne_avis()
+}
+
+enum StatutFormation {
+    ACTIVE
+    INACTIVE
+    ARCHIVEE
+}
+
+class Module {
+    + id: int
+    + titre: string
+    + ordre: int
+}
+
+abstract class Ressource {
+    + id: int
+    + titre: string
+    + ordre: int
+}
+
+class Document {
+    + url_fichier: string
+    + format: string
+}
+
+class Video {
+    + url_video: string
+    + duree: int
+}
+
+abstract class Evaluation {
+    + id: int
+    + titre: string
+}
+
+class Quiz {
+    + d_limite: int
+    + score_minimum: int
+}
+
+class Question {
+    + id: int
+    + enonce: text
+    + type: TypeQuestion
+    + bareme: float
+}
+
+enum TypeQuestion {
+    QCM
+    VRAI_FAUX
+}
+
+class OptionReponse {
+    + id: int
+    + texte: string
+    + est_correcte: boolean
+}
+
+class Test {
+    + consigne: text
+    + fichier_consigne_url: string
+}
+
+class Inscription {
+    + id: int
+    + date_inscription: datetime
+    + progression: float
+}
+
+class Avis {
+    + id: int
+    + note: int
+    + commentaire: text
+    + date: datetime
+}
+
+class RenduTest {
+    + id: int
+    + date_soumission: datetime
+    + contenu: text
+    + fichier_url: string
+    + note: float
+    + commentaire_formateur: text
+}
+
+class ParticipationQuiz {
+    + id: int
+    + date_passage: datetime
+    + score: float
+}
+
+' Relations
+Utilisateur <|-- Administrateur
+Utilisateur <|-- Formateur
+Utilisateur <|-- Etudiant
+
+Categorie "1" *-- "0..*" SousCategorie : contient >
+SousCategorie "1" -- "0..*" Formation : possède >
+
+Formation "0..*" -- "1" Formateur : creee par >
+Formation "1" *-- "1..*" Module : composee de >
+
+Module "1" *-- "0..*" Ressource : contient >
+Ressource <|-- Document
+Ressource <|-- Video
+
+Module "1" *-- "0..*" Evaluation : evalue par >
+Evaluation <|-- Quiz
+Evaluation <|-- Test
+
+Quiz "1" *-- "1..*" Question : possede >
+Question "1" *-- "2..*" OptionReponse : options >
+
+Etudiant "1" -- "0..*" Inscription : realise >
+Inscription "*" -- "1" Formation : liee a >
+
+Etudiant "1" -- "0..*" Avis : laisse >
+Avis "*" -- "1" Formation : concerne >
+
+Etudiant "1" -- "0..*" ParticipationQuiz : participe >
+ParticipationQuiz "*" -- "1" Quiz : pour >
+
+Etudiant "1" -- "0..*" RenduTest : soumet >
+RenduTest "*" -- "1" Test : reponse a >
+RenduTest "*" -- "1" Formateur : note par >
+
+@enduml

@@ -1,0 +1,274 @@
+@page "/etudiant-dashboard"
+@attribute [Authorize(Roles = "Student")]
+@using E_learning.Models.Helpers
+@inject AuthenticationStateProvider AuthStateProvider
+@inject HttpClient Http
+
+<div class="dashboard-container">
+    <div class="dash-layout">
+        <!-- Main Content -->
+        <main class="dash-main">
+            <!-- Welcome Section -->
+            <div class="welcome-box">
+                <div class="welcome-text">
+                    <h2>Content de te revoir, @_userDisplay  ! 👋</h2>
+                    <p>Prête pour ta prochaine session d'apprentissage ? @WelcomeMessage</p>
+                </div>
+                <div class="welcome-illustration">
+                    <div class="abstract-shape shape-1"></div>
+                    <div class="abstract-shape shape-2"></div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon bg-indigo">
+                        <svg fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 8.56l-1.222.524a1 1 0 000 1.838l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.838l-1.222-.524-5.385 2.308a1 1 0 01-.788 0L3.31 8.56z"></path><path d="M5 12.25V15a1 1 0 001 1h8a1 1 0 001-1v-2.75l-4.606 1.974a1 1 0 01-.788 0L5 12.25z"></path></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value">@_enrolledCount</span>
+                        <span class="stat-label">Mes formations</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon bg-violet">
+                        <svg fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value">@_validatedQuizCount</span>
+                        <span class="stat-label">Quiz validés</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon bg-green">
+                        <svg fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value">@_submittedTestsCount</span>
+                        <span class="stat-label">Tests remis</span>
+                    </div>
+                </div>
+            </div>
+
+            <section class="resume-section quick-overview">
+                <div class="section-header">
+                    <h3>Vue rapide</h3>
+                </div>
+                <div class="overview-grid">
+                    <div class="overview-card">
+                        <span class="overview-label">Modules à suivre</span>
+                        <strong>@_totalModules</strong>
+                    </div>
+                    <div class="overview-card">
+                        <span class="overview-label">Progression moyenne</span>
+                        <strong>@($"{GetAverageProgress():0}%")</strong>
+                    </div>
+                    <div class="overview-card">
+                        <span class="overview-label">Catégories suivies</span>
+                        <strong>@_categoriesCount</strong>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Resume Learning -->
+            <section class="resume-section">
+                <div class="section-header">
+                    <h3>Reprendre l'apprentissage</h3>
+                    <a href="/formations" class="view-all">Tout voir</a>
+                </div>
+
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Medium" />
+                }
+                else if (!string.IsNullOrWhiteSpace(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+                }
+                else if (_enrolledFormations.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Aucune formation disponible pour le moment.</MudAlert>
+                }
+                else
+                {
+                    @foreach (var formation in _enrolledFormations)
+                    {
+                        <div class="progress-card">
+                            <div class="progress-card__thumb" style="background-color: @GetThumbColor(formation.Difficulte);"></div>
+                            <div class="progress-card__content">
+                                <div class="course-meta-inline">
+                                    <span class="course-category">@GetCategoryName(formation)</span>
+                                </div>
+                                <h4 class="course-title">@formation.Titre</h4>
+                                <div class="course-instructor">Statut : @FormationStatusHelper.GetDisplayLabel(formation.Statut)</div>
+
+                                <div class="progress-container">
+                                    <div class="progress-info">
+                                        <span>@(formation.Modules?.Count ?? 0) module(s)</span>
+                                        <span class="percentage">@GetFormationCompletionHint(formation)%</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-fill" style="width: @(GetFormationCompletionHint(formation))%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="progress-card__action">
+                                <a href="/etudiant/formations/@formation.Id" class="btn-play">
+                                    <svg fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                                    Continuer
+                                </a>
+                            </div>
+                        </div>
+                    }
+                }
+            </section>
+        </main>
+    </div>
+</div>
+@code {
+    private string _userDisplay = "Utilisateur";
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private List<FormationDTO> _formations = [];
+    private readonly List<FormationDTO> _enrolledFormations = [];
+    private readonly List<InscriptionDTO> _inscriptions = [];
+    private readonly List<ParticipationQuizDTO> _participations = [];
+    private readonly List<RenduTestDTO> _rendus = [];
+    private int _publishedFormations;
+    private int _totalModules;
+    private int _categoriesCount;
+    private int _enrolledCount;
+    private int _validatedQuizCount;
+    private int _submittedTestsCount;
+
+    private string WelcomeMessage => _formations.Count == 0
+        ? "Aucune formation n'est disponible pour le moment."
+        : $"{_enrolledFormations.Count} formation(s) en cours dans votre espace.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                _userDisplay = email.Split('@')[0];
+            }
+        }
+
+        await LoadDashboardDataAsync();
+    }
+
+    private async Task LoadDashboardDataAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _formations = await Http.GetFromJsonAsync<List<FormationDTO>>("api/formation") ?? [];
+            _inscriptions.Clear();
+            _inscriptions.AddRange(await Http.GetFromJsonAsync<List<InscriptionDTO>>("api/inscriptions/me") ?? []);
+            var enrolledIds = _inscriptions
+                .Select(i => i.FormationId)
+                .Where(id => id > 0)
+                .ToHashSet();
+
+            _enrolledFormations.Clear();
+            _enrolledFormations.AddRange(_formations.Where(f => enrolledIds.Contains(f.Id)));
+            _enrolledCount = _enrolledFormations.Count;
+
+            _publishedFormations = _formations.Count(f => FormationStatusHelper.IsActive(f.Statut));
+
+            _totalModules = _formations.Sum(f => f.Modules?.Count ?? 0);
+
+            _categoriesCount = _formations
+                .Select(GetCategoryName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            _participations.Clear();
+            _rendus.Clear();
+
+            if (_inscriptions.Count > 0)
+            {
+                var participationTasks = _inscriptions
+                    .Select(inscription => Http.GetFromJsonAsync<List<ParticipationQuizDTO>>($"api/participationquizzes/inscription/{inscription.Id}"));
+                var renduTasks = _inscriptions
+                    .Select(inscription => Http.GetFromJsonAsync<List<RenduTestDTO>>($"api/rendutests/inscription/{inscription.Id}"));
+
+                foreach (var items in await Task.WhenAll(participationTasks))
+                {
+                    if (items is not null)
+                    {
+                        _participations.AddRange(items);
+                    }
+                }
+
+                foreach (var items in await Task.WhenAll(renduTasks))
+                {
+                    if (items is not null)
+                    {
+                        _rendus.AddRange(items);
+                    }
+                }
+            }
+
+            _validatedQuizCount = _participations.Count(p => p.Quiz is not null && p.Score >= p.Quiz.ScoreMinimum);
+            _submittedTestsCount = _rendus.Count;
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger les données du tableau de bord.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetCategoryName(FormationDTO formation)
+        => formation.SousCategorie?.Categorie?.Nom
+           ?? formation.SousCategorie?.Nom
+           ?? "Sans catégorie";
+
+    private static string GetThumbColor(string? difficulte)
+        => difficulte?.Trim().ToLowerInvariant() switch
+        {
+            "débutant" => "#61dafb",
+            "intermédiaire" => "#FF3366",
+            "avance" or "avancé" => "#4CAF50",
+            _ => "#7c9ef8"
+        };
+
+    private static int GetFormationCompletionHint(FormationDTO formation)
+    {
+        var moduleCount = formation.Modules?.Count ?? 0;
+        if (moduleCount <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Min(100, 20 + (moduleCount * 15));
+    }
+
+    private float GetAverageProgress()
+    {
+        if (_inscriptions.Count == 0)
+        {
+            return 0;
+        }
+
+        return _inscriptions.Average(inscription => NormalizeProgress(inscription.Progression));
+    }
+
+    private static float NormalizeProgress(float progress)
+        => Math.Clamp(progress, 0, 100);
+}

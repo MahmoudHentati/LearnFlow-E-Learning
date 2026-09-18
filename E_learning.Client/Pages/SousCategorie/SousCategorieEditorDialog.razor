@@ -1,0 +1,150 @@
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_errorMessage</MudAlert>
+        }
+
+        <MudTextField @bind-Value="_model.Nom" Label="Nom" Variant="Variant.Outlined" Required="true" FullWidth="true" Class="mb-3" />
+
+        <MudAutocomplete T="CategorieDTO"
+                         Label="Catégorie"
+                         Variant="Variant.Outlined"
+                         FullWidth="true"
+                         Dense="true"
+                         Clearable="true"
+                         Class="mb-3"
+                         ToStringFunc="@(c => c?.Nom ?? string.Empty)"
+                         SearchFunc="SearchCategoriesAsync"
+                         Value="_selectedCategorie"
+                         ValueChanged="OnCategorieChanged" />
+
+        <MudTextField @bind-Value="_model.Description" Label="Description" Variant="Variant.Outlined" Lines="3" FullWidth="true" />
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Disabled="_isSaving" OnClick="Cancel">Annuler</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSaving" OnClick="SaveAsync">
+            @(_isSaving ? "Enregistrement..." : "Enregistrer")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int? SousCategorieId { get; set; }
+
+    private readonly SousCategorieDTO _model = new();
+    private List<CategorieDTO> _categories = [];
+    private CategorieDTO? _selectedCategorie;
+    private string? _errorMessage;
+    private bool _isSaving;
+    private bool IsEdit => SousCategorieId.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+
+        if (!IsEdit)
+        {
+            return;
+        }
+
+        try
+        {
+            var loaded = await Http.GetFromJsonAsync<SousCategorieDTO>($"api/souscategories/{SousCategorieId.GetValueOrDefault()}");
+            if (loaded is null)
+            {
+                _errorMessage = "Sous-catégorie introuvable.";
+                return;
+            }
+
+            _model.Id = loaded.Id;
+            _model.Nom = loaded.Nom;
+            _model.Description = loaded.Description;
+            _model.CategorieId = loaded.CategorieId;
+            _selectedCategorie = _categories.FirstOrDefault(c => c.Id == loaded.CategorieId);
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger la sous-catégorie.";
+        }
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        try
+        {
+            _categories = await Http.GetFromJsonAsync<List<CategorieDTO>>("api/categories") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger les catégories.";
+        }
+    }
+
+    private Task<IEnumerable<CategorieDTO>> SearchCategoriesAsync(string value, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IEnumerable<CategorieDTO> query = _categories;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            query = query.Where(c => c.Nom.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult<IEnumerable<CategorieDTO>>(query.OrderBy(c => c.Nom).ToList());
+    }
+
+    private void OnCategorieChanged(CategorieDTO? categorie)
+    {
+        _selectedCategorie = categorie;
+        _model.CategorieId = categorie?.Id ?? 0;
+    }
+
+    private async Task SaveAsync()
+    {
+        _errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Nom))
+        {
+            _errorMessage = "Le nom est obligatoire.";
+            return;
+        }
+
+        if (_model.CategorieId <= 0)
+        {
+            _errorMessage = "La catégorie est obligatoire.";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            HttpResponseMessage response = IsEdit
+                ? await Http.PutAsJsonAsync($"api/souscategories/{_model.Id}", _model)
+                : await Http.PostAsJsonAsync("api/souscategories", _model);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _errorMessage = "L'enregistrement a échoué.";
+                return;
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch
+        {
+            _errorMessage = "Erreur pendant l'enregistrement.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

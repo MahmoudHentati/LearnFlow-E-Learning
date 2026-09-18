@@ -1,0 +1,260 @@
+@page "/formateur/etudiant/{studentId}/formation/{formationId:int}"
+@attribute [Authorize(Roles = "Instructor")]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Détail étudiant</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8 mb-6 student-detail-page">
+    <div class="student-detail-hero mb-6">
+        <div class="d-flex justify-space-between align-center gap-4 flex-wrap">
+            <div>
+                <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="@GoBack" Class="mb-2 back-btn">
+                    Retour aux étudiants
+                </MudButton>
+                <div class="d-flex align-center gap-3">
+                    <MudIcon Icon="@Icons.Material.Filled.PersonSearch" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h4" Style="font-weight:700;">Suivi détaillé étudiant</MudText>
+                </div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Vue complète de la progression, des quiz et des rendus sur cette formation</MudText>
+            </div>
+            <MudPaper Outlined="true" Elevation="0" Class="student-detail-score">
+                <MudText Typo="Typo.caption" Class="stat-label">Progression</MudText>
+                <MudText Typo="Typo.h4" Class="stat-value">@($"{(_inscription?.Progression ?? 0):0}%")</MudText>
+            </MudPaper>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center pa-8">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+    }
+    else if (_inscription is null)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Aucune inscription trouvée pour cet étudiant.</MudAlert>
+    }
+    else
+    {
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Formation</MudText>
+                    <MudText Typo="Typo.h6" Class="stat-value">@DisplayOrDash(_formation?.Titre)</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Date inscription</MudText>
+                    <MudText Typo="Typo.h6" Class="stat-value">@(_inscription.DateInscription?.ToString("dd/MM/yyyy") ?? "-")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Quiz passés</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@_participations.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Tests rendus</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@_rendus.Count</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Outlined="true" Elevation="0" Class="pa-4 content-shell">
+            <MudTabs Rounded="true" Border="true" PanelClass="tab-panel">
+                <MudTabPanel Text="Résumé">
+                    <MudGrid Class="mt-2 overview-grid">
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-main-card">
+                                <div class="overview-block">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Étudiant</MudText>
+                                    <MudText Typo="Typo.h6" Class="overview-value">@GetStudentName()</MudText>
+                                </div>
+                                <div class="overview-block">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Email</MudText>
+                                    <MudText Typo="Typo.body1" Class="overview-value">@DisplayOrDash(_inscription.Edudiant?.Email)</MudText>
+                                </div>
+                                <div class="overview-block mb-0">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Formation suivie</MudText>
+                                    <MudText Typo="Typo.body1" Class="overview-value">@DisplayOrDash(_formation?.Titre)</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-side-card">
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Date inscription</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@(_inscription.DateInscription?.ToString("dd/MM/yyyy HH:mm") ?? "-")</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Progression</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@($"{_inscription.Progression:0}%")</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Quiz passés</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@_participations.Count</MudText>
+                                </div>
+                                <div class="overview-kv mb-0">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Tests rendus</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@_rendus.Count</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Quiz">
+                    @if (_participations.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">Aucun quiz passé.</MudAlert>
+                    }
+                    else
+                    {
+                        <div class="student-result-list mt-3">
+                            @foreach (var participation in _participations.OrderByDescending(item => item.DatePassage))
+                            {
+                                var quiz = FindQuiz(participation.QuizId);
+                                var module = FindModule(participation.QuizId);
+                                var maximumScore = quiz?.Questions?.Sum(question => question.Bareme) ?? 0;
+
+                                <MudPaper Outlined="true" Elevation="0" Class="student-result-card">
+                                    <div class="resource-card-head">
+                                        <div>
+                                            <MudText Typo="Typo.caption" Class="resource-eyebrow">Quiz #@participation.QuizId</MudText>
+                                            <MudText Typo="Typo.subtitle1" Class="resource-title">@DisplayOrDash(module?.Titre)</MudText>
+                                        </div>
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="@GetQuizColor(participation, quiz)">
+                                            @participation.Score / @maximumScore
+                                        </MudChip>
+                                    </div>
+                                    <div class="student-result-meta">
+                                        <MudText Typo="Typo.body2">Passé le @(participation.DatePassage?.ToString("dd/MM/yyyy HH:mm") ?? "-")</MudText>
+                                        <MudText Typo="Typo.body2">Score minimum: @(quiz?.ScoreMinimum ?? 0)</MudText>
+                                        <MudText Typo="Typo.body2">Questions: @(quiz?.Questions?.Count ?? 0)</MudText>
+                                    </div>
+                                </MudPaper>
+                            }
+                        </div>
+                    }
+                </MudTabPanel>
+
+                <MudTabPanel Text="Tests et rendus">
+                    @if (_rendus.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">Aucun rendu envoyé.</MudAlert>
+                    }
+                    else
+                    {
+                        <div class="student-result-list mt-3">
+                            @foreach (var rendu in _rendus.OrderByDescending(item => item.DateSoumission))
+                            {
+                                <MudPaper Outlined="true" Elevation="0" Class="student-result-card">
+                                    <div class="resource-card-head">
+                                        <div>
+                                            <MudText Typo="Typo.caption" Class="resource-eyebrow">Test #@rendu.TestId</MudText>
+                                            <MudText Typo="Typo.subtitle1" Class="resource-title">@DisplayOrDash(rendu.Test?.Consigne)</MudText>
+                                        </div>
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="@(rendu.Note.HasValue ? Color.Success : Color.Warning)">
+                                            @(rendu.Note.HasValue ? $"{rendu.Note}/20" : "Non noté")
+                                        </MudChip>
+                                    </div>
+                                    <div class="student-result-meta">
+                                        <MudText Typo="Typo.body2">Soumis le @(rendu.DateSoumission?.ToString("dd/MM/yyyy HH:mm") ?? "-")</MudText>
+                                        <MudText Typo="Typo.body2">Commentaire: @DisplayOrDash(rendu.CommentaireFormateur)</MudText>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(rendu.FichierUrl))
+                                    {
+                                        <div class="resource-actions">
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Href="@rendu.FichierUrl" Target="_blank">
+                                                Ouvrir le fichier
+                                            </MudButton>
+                                        </div>
+                                    }
+                                </MudPaper>
+                            }
+                        </div>
+                    }
+                </MudTabPanel>
+            </MudTabs>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    public string StudentId { get; set; } = string.Empty;
+
+    [Parameter]
+    public int FormationId { get; set; }
+
+    private FormationDTO? _formation;
+    private InscriptionDTO? _inscription;
+    private List<ParticipationQuizDTO> _participations = [];
+    private List<RenduTestDTO> _rendus = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _formation = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{FormationId}");
+            var inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>($"api/inscriptions/formation/{FormationId}") ?? [];
+            _inscription = inscriptions.FirstOrDefault(item => item.EdudiantId == StudentId);
+
+            if (_inscription is null)
+            {
+                return;
+            }
+
+            _participations = await Http.GetFromJsonAsync<List<ParticipationQuizDTO>>($"api/participationquizzes/inscription/{_inscription.Id}") ?? [];
+            _rendus = await Http.GetFromJsonAsync<List<RenduTestDTO>>($"api/rendutests/inscription/{_inscription.Id}") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger le détail de l'étudiant.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetStudentName()
+    {
+        var firstName = _inscription?.Edudiant?.FirstName;
+        var lastName = _inscription?.Edudiant?.LastName;
+        var fullName = $"{firstName} {lastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName)
+            ? _inscription?.Edudiant?.UserName ?? "Etudiant"
+            : fullName;
+    }
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private QuizDTO? FindQuiz(int quizId)
+        => _formation?.Modules?
+            .SelectMany(module => module.Quizzes ?? [])
+            .FirstOrDefault(quiz => quiz.Id == quizId);
+
+    private ModuleDTO? FindModule(int quizId)
+        => _formation?.Modules?
+            .FirstOrDefault(module => module.Quizzes?.Any(quiz => quiz.Id == quizId) == true);
+
+    private static Color GetQuizColor(ParticipationQuizDTO participation, QuizDTO? quiz)
+        => participation.Score >= (quiz?.ScoreMinimum ?? 0) ? Color.Success : Color.Warning;
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo($"/formateur/formation/{FormationId}/etudiants");
+    }
+}

@@ -1,0 +1,270 @@
+@page "/formateur-mes-evaluations"
+@attribute [Authorize(Roles = "Instructor")]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Mes évaluations</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700;">Évaluations et rendus</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Suivi des rendus étudiants et correction rapide</MudText>
+        </div>
+        <div class="d-flex align-center gap-4">
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @_rendus.Count rendu(s)
+            </MudChip>
+            <MudChip T="string" Color="Color.Info" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @_rendus.Count(IsCorrected) corrigé(s)
+            </MudChip>
+        </div>
+    </div>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" />
+                <MudText Typo="Typo.button">CRITERES DE RECHERCHE</MudText>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => _searchText = string.Empty)" Color="Color.Secondary">
+                    REINITIALISER
+                </MudButton>
+            }
+        </div>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_searchText" Placeholder="Rechercher etudiant, test ou formation..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="border-radius:4px;" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="ma-4">@_errorMessage</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="FilteredRendus" Hover="true" Dense="true" Striped="true" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+                <HeaderContent>
+                    <MudTh>Étudiant</MudTh>
+                    <MudTh>Test</MudTh>
+                    <MudTh>Formation</MudTh>
+                    <MudTh>Date</MudTh>
+                    <MudTh>Note</MudTh>
+                    <MudTh>Statut</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@GetStudentName(context)</MudTd>
+                    <MudTd>@(context.Test?.Consigne ?? "Test sans titre")</MudTd>
+                    <MudTd>@(context.Test?.Module?.Formation?.Titre ?? "-")</MudTd>
+                    <MudTd>@(context.DateSoumission?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudTd>
+                    <MudTd>
+                        @if (IsCorrected(context))
+                        {
+                            <MudChip T="string" Color="@((context.Note ?? 0) >= 10 ? Color.Success : Color.Error)" Variant="Variant.Filled" Size="Size.Small">
+                                @context.Note / 20
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2">-</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudChip T="string" Color="@GetStatutColor(context)" Variant="Variant.Text" Size="Size.Small">
+                            @(IsCorrected(context) ? "Corrigé" : "En attente")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small" Disabled="@(context.Test?.Module?.Formation?.Id is null)" OnClick="@(() => OpenFormation(context))" />
+                        @if (!string.IsNullOrWhiteSpace(context.FichierUrl))
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.AttachFile" Color="Color.Info" Size="Size.Small" Href="@context.FichierUrl" Target="_blank" />
+                        }
+                        <MudIconButton Icon="@Icons.Material.Filled.EditNote" Color="Color.Secondary" Size="Size.Small" OnClick="@(() => StartCorrection(context))" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Aucun rendu trouvé.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Lignes par page:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+
+    @if (_activeRendu is not null)
+    {
+        <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6" Class="mb-2">Correction du rendu</MudText>
+            <MudText Typo="Typo.body2" Class="mb-1">Étudiant : @GetStudentName(_activeRendu)</MudText>
+            <MudText Typo="Typo.body2" Class="mb-3">Test : @(_activeRendu.Test?.Consigne ?? "-")</MudText>
+
+            @if (!string.IsNullOrWhiteSpace(_activeRendu.Contenu))
+            {
+                <MudPaper Outlined="true" Elevation="0" Class="pa-3 mb-4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Message étudiant</MudText>
+                    <MudText Typo="Typo.body2">@_activeRendu.Contenu</MudText>
+                </MudPaper>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_correctionErrorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_correctionErrorMessage</MudAlert>
+            }
+
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudNumericField T="float?" @bind-Value="_correctionNote" Label="Note / 20" Variant="Variant.Outlined" FullWidth="true" Min="0" Max="20" />
+                </MudItem>
+                <MudItem xs="12" md="8">
+                    <MudTextField @bind-Value="_correctionComment" Label="Commentaire formateur" Variant="Variant.Outlined" Lines="4" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" Class="d-flex gap-2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="_isSavingCorrection" OnClick="SaveCorrectionAsync">
+                        @(_isSavingCorrection ? "Enregistrement..." : "Enregistrer")
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="CancelCorrection">Annuler</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private List<RenduTestDTO> _rendus = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchText = string.Empty;
+    private RenduTestDTO? _activeRendu;
+    private float? _correctionNote;
+    private string _correctionComment = string.Empty;
+    private string? _correctionErrorMessage;
+    private bool _isSavingCorrection;
+
+    private List<RenduTestDTO> FilteredRendus => _rendus
+        .Where(rendu =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || Contains(GetStudentName(rendu), _searchText)
+            || Contains(rendu.Test?.Consigne, _searchText)
+            || Contains(rendu.Test?.Module?.Formation?.Titre, _searchText))
+        .OrderByDescending(rendu => rendu.DateSoumission)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _rendus = await Http.GetFromJsonAsync<List<RenduTestDTO>>("api/rendutests/instructor/me") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger les rendus.";
+            _rendus = [];
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenFormation(RenduTestDTO rendu)
+    {
+        var formationId = rendu.Test?.Module?.Formation?.Id;
+        if (formationId > 0)
+        {
+            NavigationManager.NavigateTo($"/formateur/formations/{formationId.Value}");
+        }
+    }
+
+    private Color GetStatutColor(RenduTestDTO rendu)
+        => IsCorrected(rendu) ? Color.Success : Color.Warning;
+
+    private static bool IsCorrected(RenduTestDTO rendu)
+        => rendu.Note.HasValue && (rendu.Note.Value > 0 || !string.IsNullOrWhiteSpace(rendu.CommentaireFormateur));
+
+    private void StartCorrection(RenduTestDTO rendu)
+    {
+        _activeRendu = rendu;
+        _correctionNote = rendu.Note;
+        _correctionComment = rendu.CommentaireFormateur ?? string.Empty;
+        _correctionErrorMessage = null;
+    }
+
+    private void CancelCorrection()
+    {
+        _activeRendu = null;
+        _correctionErrorMessage = null;
+        _correctionComment = string.Empty;
+        _correctionNote = null;
+    }
+
+    private async Task SaveCorrectionAsync()
+    {
+        _correctionErrorMessage = null;
+
+        if (_activeRendu is null)
+        {
+            return;
+        }
+
+        _isSavingCorrection = true;
+
+        try
+        {
+            var payload = new RenduTestDTO
+            {
+                Id = _activeRendu.Id,
+                DateSoumission = _activeRendu.DateSoumission,
+                Contenu = _activeRendu.Contenu,
+                FichierUrl = _activeRendu.FichierUrl,
+                Note = _correctionNote,
+                CommentaireFormateur = _correctionComment?.Trim() ?? string.Empty,
+                TestId = _activeRendu.TestId,
+                InscriptionId = _activeRendu.InscriptionId
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/rendutests/{_activeRendu.Id}", payload);
+            if (!response.IsSuccessStatusCode)
+            {
+                _correctionErrorMessage = "Impossible d'enregistrer la correction.";
+                return;
+            }
+
+            _activeRendu.Note = payload.Note;
+            _activeRendu.CommentaireFormateur = payload.CommentaireFormateur;
+            CancelCorrection();
+        }
+        catch
+        {
+            _correctionErrorMessage = "Erreur lors de l'enregistrement de la correction.";
+        }
+        finally
+        {
+            _isSavingCorrection = false;
+        }
+    }
+
+    private static string GetStudentName(RenduTestDTO rendu)
+        => rendu.Inscription?.Edudiant is null
+            ? "Utilisateur inconnu"
+            : $"{rendu.Inscription.Edudiant.FirstName} {rendu.Inscription.Edudiant.LastName}".Trim();
+
+    private static bool Contains(string? value, string search)
+        => value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
+}

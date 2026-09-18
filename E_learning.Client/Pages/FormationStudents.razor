@@ -1,0 +1,231 @@
+@page "/formateur/formation/{formationId:int}/etudiants"
+@attribute [Authorize(Roles = "Instructor")]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<PageTitle>Étudiants de la formation</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Class="mb-2">
+                Retour aux formations
+            </MudButton>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.Groups" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700;">Étudiants inscrits</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">@DisplayOrDash(_formationTitle)</MudText>
+        </div>
+        <div class="d-flex align-center gap-4">
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @_inscriptions.Count étudiant(s)
+            </MudChip>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" OnClick="ExportToExcel" Class="py-2 px-4" Style="border-radius:4px;">
+                EXPORTER CSV
+            </MudButton>
+        </div>
+    </div>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" />
+                <MudText Typo="Typo.button">CRITERES DE RECHERCHE</MudText>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_searchString))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => _searchString = string.Empty)" Color="Color.Secondary">
+                    REINITIALISER
+                </MudButton>
+            }
+        </div>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_searchString" Placeholder="Rechercher nom, email ou prénom..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="border-radius:4px;" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="ma-4">@_errorMessage</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="FilteredInscriptions" Hover="true" Dense="true" Striped="true" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+                <HeaderContent>
+                    <MudTh>Étudiant</MudTh>
+                    <MudTh>Email</MudTh>
+                    <MudTh>Date inscription</MudTh>
+                    <MudTh>Progression</MudTh>
+                    <MudTh>Statut</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@GetStudentName(context)</MudTd>
+                    <MudTd>@DisplayOrDash(context.Edudiant?.Email)</MudTd>
+                    <MudTd>@(context.DateInscription?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudTd>
+                    <MudTd>@($"{NormalizeProgress(context.Progression):0}%")</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Color="@GetProgressColor(context.Progression)" Size="Size.Small" Variant="Variant.Filled">
+                            @GetStatusLabel(context.Progression)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ViewStudentDetails(context))" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Aucun étudiant trouvé.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Lignes par page:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public int FormationId { get; set; }
+
+    private List<InscriptionDTO> _inscriptions = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string? _formationTitle;
+    private string _searchString = string.Empty;
+
+    private List<InscriptionDTO> FilteredInscriptions => _inscriptions
+        .Where(FilterInscriptions)
+        .OrderByDescending(inscription => inscription.DateInscription)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            if (FormationId <= 0)
+            {
+                _errorMessage = "ID de formation invalide.";
+                return;
+            }
+
+            _inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>($"api/inscriptions/formation/{FormationId}") ?? [];
+            var formation = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{FormationId}");
+            _formationTitle = formation?.Titre ?? "Formation";
+        }
+        catch
+        {
+            _errorMessage = "Erreur lors du chargement des étudiants.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Color GetProgressColor(float progress)
+        => NormalizeProgress(progress) switch
+        {
+            >= 100 => Color.Success,
+            >= 75 => Color.Info,
+            >= 50 => Color.Warning,
+            _ => Color.Error
+        };
+
+    private static float NormalizeProgress(float progress)
+        => Math.Clamp(progress, 0, 100);
+
+    private void ViewStudentDetails(InscriptionDTO inscription)
+    {
+        NavigationManager.NavigateTo($"/formateur/etudiant/{inscription.EdudiantId}/formation/{FormationId}");
+    }
+
+    private bool FilterInscriptions(InscriptionDTO inscription)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+        {
+            return true;
+        }
+
+        var search = _searchString.Trim();
+        return Contains(inscription.Edudiant?.UserName, search)
+            || Contains(inscription.Edudiant?.Email, search)
+            || Contains(inscription.Edudiant?.FirstName, search)
+            || Contains(inscription.Edudiant?.LastName, search);
+    }
+
+    private static bool Contains(string? value, string search)
+        => value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
+
+    private async Task ExportToExcel()
+    {
+        var rows = FilteredInscriptions;
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Etudiant;Email;Date inscription;Progression;Statut");
+
+        foreach (var inscription in rows)
+        {
+            csv.AppendLine(string.Join(';',
+                EscapeCsv(GetStudentName(inscription)),
+                EscapeCsv(inscription.Edudiant?.Email),
+                EscapeCsv(inscription.DateInscription?.ToString("dd/MM/yyyy HH:mm")),
+                EscapeCsv($"{inscription.Progression:0}%"),
+                EscapeCsv(GetStatusLabel(inscription.Progression))));
+        }
+
+        var fileName = $"etudiants-formation-{FormationId}-{DateTime.Now:yyyyMMdd-HHmm}.csv";
+        await JS.InvokeVoidAsync("utils.downloadTextFile", fileName, csv.ToString(), "text/csv;charset=utf-8");
+    }
+
+    private static string EscapeCsv(string? value)
+    {
+        var normalized = value ?? string.Empty;
+        if (!normalized.Contains(';') && !normalized.Contains('"') && !normalized.Contains('\n'))
+        {
+            return normalized;
+        }
+
+        return Convert.ToChar(34) + normalized.Replace("\"", "\"\"") + Convert.ToChar(34);
+    }
+
+    private static string GetStatusLabel(float progress)
+        => NormalizeProgress(progress) switch
+        {
+            >= 100 => "Terminée",
+            >= 50 => "En cours",
+            _ => "Commencée"
+        };
+
+    private static string GetStudentName(InscriptionDTO inscription)
+    {
+        var fullName = $"{inscription.Edudiant?.FirstName} {inscription.Edudiant?.LastName}".Trim();
+        if (!string.IsNullOrWhiteSpace(fullName))
+        {
+            return fullName;
+        }
+
+        return inscription.Edudiant?.UserName ?? "Étudiant";
+    }
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/formateur-mes-formations");
+    }
+}

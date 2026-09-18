@@ -1,0 +1,314 @@
+﻿@page "/inscription/etudiant"
+@using System.ComponentModel.DataAnnotations
+@inject IAuthenticationService AuthenticationService
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+
+<PageTitle>Inscription Etudiant à EduLearn</PageTitle>
+
+<div class="iform-page">
+
+    <div class="iform-back-row">
+        <a href="@BuildFlowUrl("/inscription")" class="iform-back">←</a>
+    </div>
+
+    <div class="iform-wrapper">
+        <div class="iform-card iform-card--blue">
+
+            <div class="iform-card__head">
+                <div class="iform-card__icon">
+                    <MudIcon Icon="@Icons.Material.Filled.School" />
+                </div>
+                <div>
+                    <h1 class="iform-card__title" style="color:#60a5fa;">Inscription Etudiant</h1>
+                    <p class="iform-card__sub">Remplissez vos informations pour créer votre compte.</p>
+                </div>
+            </div>
+
+            <EditForm Model="_form" OnValidSubmit="HandleRegisterAsync">
+                <DataAnnotationsValidator />
+
+                @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                {
+                    <div class="alert alert-danger mb-3">@_errorMessage</div>
+                }
+
+                <div class="row g-3 mb-3">
+                    <!-- Nom -->
+                    <div class="col-12 col-md-6">
+                        <label class="iform-label">Nom</label>
+                        <div class="iform-field">
+                            <span class="iform-field__icon">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" />
+                            </span>
+                            <input type="text" class="iform-input" @bind="_form.LastName" />
+                        </div>
+                        <ValidationMessage For="@(() => _form.LastName)" />
+                    </div>
+
+                    <!-- Prénom -->
+                    <div class="col-12 col-md-6">
+                        <label class="iform-label">Prénom</label>
+                        <div class="iform-field">
+                            <span class="iform-field__icon">
+                                <MudIcon Icon="@Icons.Material.Filled.Edit" />
+                            </span>
+                            <input type="text" class="iform-input" @bind="_form.FirstName" />
+                        </div>
+                        <ValidationMessage For="@(() => _form.FirstName)" />
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div class="mb-3">
+                    <label class="iform-label">Adresse e-mail</label>
+                    <div class="iform-field">
+                        <span class="iform-field__icon">
+                            <MudIcon Icon="@Icons.Material.Filled.Email" />
+                        </span>
+                        <input type="email" class="iform-input" @bind="_form.Email" />
+                    </div>
+                    <ValidationMessage For="@(() => _form.Email)" />
+                </div>
+
+                <!-- Adresse -->
+                <div class="mb-3">
+                    <label class="iform-label">Adresse postale</label>
+                    <div class="iform-field">
+                        <span class="iform-field__icon">
+                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" />
+                        </span>
+                        <input type="text" class="iform-input" @bind="_form.Address" />
+                    </div>
+                </div>
+
+                <!-- Mot de passe -->
+                <div class="mb-3">
+                    <label class="iform-label">Mot de passe</label>
+                    <div class="iform-field">
+                        <span class="iform-field__icon">
+                            <MudIcon Icon="@Icons.Material.Filled.Lock" />
+                        </span>
+                        <div style="position:relative; width:100%;"><input type="@PasswordType" class="iform-input" @bind="_form.Password" @bind:event="oninput" /><button type="button" @onclick="TogglePassword" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:inherit;"><MudIcon Icon="@PasswordIcon" Size="Size.Small"/></button></div>
+                    </div>
+                    <ValidationMessage For="@(() => _form.Password)" />
+
+                    <!-- Critères du mot de passe -->
+                    <ul class="pwd-criteria">
+                        <li class="@(HasUppercase ? "pwd-ok" : "pwd-no")">
+                            <span class="pwd-icon">@(HasUppercase ? "✓" : "×")</span>
+                            Au moins une lettre majuscule
+                        </li>
+                        <li class="@(HasDigit ? "pwd-ok" : "pwd-no")">
+                            <span class="pwd-icon">@(HasDigit ? "✓" : "×")</span>
+                            Au moins un chiffre
+                        </li>
+                        <li class="@(HasSpecial ? "pwd-ok" : "pwd-no")">
+                            <span class="pwd-icon">@(HasSpecial ? "✓" : "×")</span>
+                            Au moins un caractère spécial
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Confirmer -->
+                <div class="mb-3">
+                    <label class="iform-label">Confirmer le mot de passe</label>
+                    <div class="iform-field">
+                        <span class="iform-field__icon">
+                            <MudIcon Icon="@Icons.Material.Filled.LockReset" />
+                        </span>
+                        <div style="position:relative; width:100%;"><input type="@PasswordType" class="iform-input" @bind="_form.ConfirmPassword" /><button type="button" @onclick="TogglePassword" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:inherit;"><MudIcon Icon="@PasswordIcon" Size="Size.Small"/></button></div>
+                    </div>
+                    <ValidationMessage For="@(() => _form.ConfirmPassword)" />
+                </div>
+
+                <div class="iform-sep">
+                    <span style="color:#60a5fa;">Parcours académique</span>
+                </div>
+
+                <!-- Spécialité -->
+                <div class="mb-3">
+                    <label class="iform-label">Spécialité visée</label>
+                    <div class="iform-field">
+                        <span class="iform-field__icon">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" />
+                        </span>
+
+                        <select class="iform-input iform-select"
+                                style="height:55px; font-size:16px;"
+                                @bind="_form.Speciality">
+
+                            <option value="">-- Choisir --</option>
+                            <option>Informatique & Développement Web</option>
+                            <option>Intelligence Artificielle & Data Science</option>
+                            <option>Réseaux & Cybersécurité</option>
+                            <option>Génie Electronique</option>
+                            <option>Génie Mécanique</option>
+                            <option>Génie Civil</option>
+                            <option>Commerce & Management</option>
+                            <option>Langues & Littérature</option>
+                            <option>Médecine & Santé</option>
+                            <option>Sciences Physiques & Mathématiques</option>
+                            <option>Arts & Design</option>
+                            <option>Autre</option>
+                        </select>
+                    </div>
+                    <ValidationMessage For="@(() => _form.Speciality)" />
+                </div>
+
+                <!-- Upload -->
+                <div class="mb-4">
+                    <label class="iform-label">Dernier diplôme obtenu</label>
+                    <label class="iform-filedrop iform-filedrop--blue" for="e-diplome">
+                        <span class="iform-filedrop__icon">
+                            <MudIcon Icon="@Icons.Material.Filled.Description" />
+                        </span>
+                        <span>Joindre un document (PDF, JPG)</span>
+                        <input type="file"
+                               id="e-diplome"
+                               accept=".pdf,.jpg,.jpeg,.png"
+                               class="iform-filedrop__input" />
+                    </label>
+                </div>
+
+                <div style="text-align:center;">
+                    <button type="submit" class="iform-btn iform-btn--blue" disabled="@_isLoading">
+                        @(_isLoading ? "Création en cours..." : "Créer mon compte Etudiant")
+                    </button>
+                </div>
+
+            </EditForm>
+
+            <p class="iform-footer">
+                Déjà inscrit ? <a href="@BuildFlowUrl("/login")">Se connecter</a>
+            </p>
+
+        </div>
+    </div>
+
+    @code {
+        private readonly StudentRegistrationForm _form = new();
+        private bool _isLoading;
+        private bool _showPassword;
+        private string PasswordType => _showPassword ? "text" : "password";
+        private string PasswordIcon => _showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+        private void TogglePassword() => _showPassword = !_showPassword;
+
+        private string? _errorMessage;
+
+        [SupplyParameterFromQuery(Name = "formationId")]
+        public int? FormationId { get; set; }
+
+        [SupplyParameterFromQuery(Name = "returnUrl")]
+        public string? ReturnUrl { get; set; }
+
+        private bool HasUppercase  => _form.Password.Any(char.IsUpper);
+        private bool HasDigit      => _form.Password.Any(char.IsDigit);
+        private bool HasSpecial    => _form.Password.Any(c => !char.IsLetterOrDigit(c));
+
+        private async Task HandleRegisterAsync()
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            var registerRequest = new RegisterRequest
+            {
+                FirstName = _form.FirstName,
+                LastName = _form.LastName,
+                Email = _form.Email,
+                Password = _form.Password,
+                Role = AppRoles.Student
+            };
+
+            var isRegistered = await AuthenticationService.RegisterAsync(registerRequest);
+
+            if (!isRegistered)
+            {
+                _isLoading = false;
+                _errorMessage = "Inscription échouée.";
+                return;
+            }
+
+            var loginResponse = await AuthenticationService.LoginAsync(new LoginRequest
+            {
+                Email = _form.Email,
+                Password = _form.Password
+            });
+
+            if (loginResponse is null)
+            {
+                _isLoading = false;
+                NavigationManager.NavigateTo(BuildFlowUrl("/login?registered=true"));
+                return;
+            }
+
+            if (FormationId.GetValueOrDefault() > 0)
+            {
+                await EnrollRequestedFormationAsync(FormationId.GetValueOrDefault());
+            }
+
+            _isLoading = false;
+            NavigationManager.NavigateTo(GetDestinationAfterRegistration());
+        }
+
+        private async Task EnrollRequestedFormationAsync(int formationId)
+        {
+            try
+            {
+                await Http.PostAsync($"api/inscriptions/me/{formationId}", content: null);
+            }
+            catch
+            {
+                // La formation reste accessible, l'étudiant pourra relancer l'inscription depuis la fiche.
+            }
+        }
+
+        private string GetDestinationAfterRegistration()
+        {
+            if (!string.IsNullOrWhiteSpace(ReturnUrl))
+            {
+                return $"/{ReturnUrl.TrimStart('/')}";
+            }
+
+            return FormationId.GetValueOrDefault() > 0 ? $"/etudiant/formations/{FormationId}" : "/etudiant-dashboard";
+        }
+
+        private string BuildFlowUrl(string path)
+        {
+            if (FormationId.GetValueOrDefault() <= 0)
+            {
+                return path;
+            }
+
+            var separator = path.Contains('?') ? "&" : "?";
+            var returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? $"/etudiant/formations/{FormationId}" : ReturnUrl;
+            return $"{path}{separator}formationId={FormationId}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+        }
+
+        private sealed class StudentRegistrationForm
+        {
+            [Required(ErrorMessage = "Prénom obligatoire")]
+            public string FirstName { get; set; } = "";
+
+            [Required(ErrorMessage = "Nom obligatoire")]
+            public string LastName { get; set; } = "";
+
+            [Required]
+            [EmailAddress]
+            public string Email { get; set; } = "";
+
+            public string Address { get; set; } = "";
+
+            [Required]
+            [MinLength(6)]
+            public string Password { get; set; } = "";
+
+            [Required]
+            [Compare(nameof(Password))]
+            public string ConfirmPassword { get; set; } = "";
+
+            [Required]
+            public string Speciality { get; set; } = "";
+        }
+    }
+</div>

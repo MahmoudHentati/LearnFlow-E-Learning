@@ -1,0 +1,305 @@
+@page "/formations/{Id:int}"
+@using System.Security.Claims
+@using E_learning.Models.Helpers
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Détails formation</PageTitle>
+
+<div class="dashboard-container">
+    <!-- Back arrow — fixed top-left, clean -->
+    <div class="iform-back-row">
+        <a href="/" class="iform-back">←</a>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="fd-loading-wrap">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="fd-alert-wrap">
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+        </div>
+    }
+    else if (_formation is null)
+    {
+        <div class="fd-alert-wrap">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Formation introuvable.</MudAlert>
+        </div>
+    }
+    else
+    {
+        <div class="dash-layout">
+
+            <!-- ── SIDEBAR (slim) ── -->
+            <aside class="dash-sidebar">
+
+
+
+                <!-- Meta info only -->
+                <div class="fd-sidebar-section">
+                    <p class="sidebar-title">Infos</p>
+                    <div class="fd-meta-list">
+                        <div class="fd-meta-row">
+                            <span class="fd-meta-key">Niveau</span>
+                            <span class="fd-meta-val fd-badge">@GetValueOrDefault(_formation.Difficulte, "—")</span>
+                        </div>
+                        <div class="fd-meta-row">
+                            <span class="fd-meta-key">Statut</span>
+                            <span class="fd-meta-val">@FormationStatusHelper.GetDisplayLabel(_formation.Statut)</span>
+                        </div>
+                        <div class="fd-meta-row">
+                            <span class="fd-meta-key">Catégorie</span>
+                            <span class="fd-meta-val">@GetCategoryName(_formation)</span>
+                        </div>
+                        <div class="fd-meta-row">
+                            <span class="fd-meta-key">Créée le</span>
+                            <span class="fd-meta-val">@(_formation.DateCreation?.ToString("dd/MM/yyyy") ?? "—")</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- ── MAIN ── -->
+            <main class="dash-main">
+
+                <!-- Hero with inline stats -->
+                <div class="fd-hero">
+                    <div class="fd-hero-copy">
+                        <span class="course-category">@GetCategoryName(_formation)</span>
+                        <h2 class="fd-hero-title">@GetValueOrDefault(_formation.Titre, "Formation")</h2>
+                        <p class="fd-hero-desc">@GetValueOrDefault(_formation.Description, "Aucune description disponible.")</p>
+                    </div>
+                    <div class="fd-hero-stats">
+                        <div class="fd-hero-stat">
+                            <span class="fd-hero-stat-val">@(_formation.Modules?.Count ?? 0)</span>
+                            <span class="fd-hero-stat-lbl">Modules</span>
+                        </div>
+                        <div class="fd-hero-stat">
+                            <span class="fd-hero-stat-val">@(_formation.Modules?.Sum(m => m.Videos?.Count ?? 0) ?? 0)</span>
+                            <span class="fd-hero-stat-lbl">Vidéos</span>
+                        </div>
+                        <div class="fd-hero-stat">
+                            <span class="fd-hero-stat-val">@(_formation.Modules?.Sum(m => m.Quizzes?.Count ?? 0) ?? 0)</span>
+                            <span class="fd-hero-stat-lbl">Quiz</span>
+                        </div>
+                        <div class="fd-hero-stat">
+                            <span class="fd-hero-stat-val">@(_formation.Modules?.Sum(m => m.Tests?.Count ?? 0) ?? 0)</span>
+                            <span class="fd-hero-stat-lbl">Tests</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prerequisites -->
+                <div class="fd-card">
+                    <div class="fd-card-header">
+                        <span class="fd-card-kicker">Organisation</span>
+                        <h3 class="fd-card-title">Prérequis</h3>
+                    </div>
+                    <p class="fd-prereq-text">@GetValueOrDefault(_formation.Prerequis, "Aucun prérequis spécifié.")</p>
+                </div>
+
+                <!-- Modules -->
+                <div class="fd-card">
+                    <div class="fd-card-header">
+                        <span class="fd-card-kicker">Aperçu public</span>
+                        <h3 class="fd-card-title">Ce que contient la formation</h3>
+                        <span class="results-count">@(_formation.Modules?.Count ?? 0) module(s)</span>
+                    </div>
+
+                    @if (_formation.Modules is null || _formation.Modules.Count == 0)
+                    {
+                        <div class="fd-empty">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2z" />
+                            </svg>
+                            <p>Aucun module disponible pour le moment.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudExpansionPanels MultiExpansion="true" Class="fd-modules-panels">
+                            @foreach (var module in _formation.Modules.OrderBy(m => m.Ordre))
+                            {
+                                <MudExpansionPanel Class="fd-module-panel"
+                                                   Text="@($"Module {module.Ordre} – {GetValueOrDefault(module.Titre, "Module sans titre")}")">
+                                    <div class="fd-module-body">
+                                        <div class="fd-module-top">
+                                            <span class="fd-module-badge">Module @module.Ordre</span>
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Aperçu</MudChip>
+                                        </div>
+                                        <div class="fd-chip-row">
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">Quiz : @(module.Quizzes?.Count ?? 0)</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">Tests : @(module.Tests?.Count ?? 0)</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">Vidéos : @(module.Videos?.Count ?? 0)</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">Documents : @(module.Documents?.Count ?? 0)</MudChip>
+                                        </div>
+                                    </div>
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                </div>
+
+                <!-- Enroll / Access card — LAST -->
+                <div class="fd-card fd-access-card">
+                    <div class="fd-card-header">
+                        <span class="fd-card-kicker">Accès</span>
+                        <h3 class="fd-card-title">Commencer cette formation</h3>
+                    </div>
+
+                    @if (_isStudent && _isEnrolled)
+                    {
+                        <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mb-3">
+                            Vous êtes déjà inscrit à cette formation.
+                        </MudAlert>
+                        <a href="@($"/etudiant/formations/{Id}")" class="btn-enroll">Ouvrir ma formation</a>
+                    }
+                    else if (_isStudent)
+                    {
+                        @if (!string.IsNullOrWhiteSpace(_actionMessage))
+                        {
+                            <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mb-3">@_actionMessage</MudAlert>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_actionError))
+                        {
+                            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_actionError</MudAlert>
+                        }
+                        <p class="fd-access-desc">Inscrivez-vous pour débloquer les vidéos, les documents, les quiz et les tests de cette formation.</p>
+                        <button class="btn-enroll" disabled="@_isEnrolling" @onclick="EnrollAsync">
+                            @(_isEnrolling ? "Inscription en cours…" : "S'inscrire à la formation")
+                        </button>
+                    }
+                    else if (!_isAuthenticated)
+                    {
+                        <p class="fd-access-desc">Connectez-vous ou créez un compte étudiant pour vous inscrire automatiquement à cette formation.</p>
+                        <div class="fd-action-row">
+                            <a href="@BuildLoginUrl()" class="btn-enroll">Se connecter</a>
+                            <a href="@BuildStudentRegistrationUrl()" class="btn-enroll btn-enroll--outline">Créer un compte étudiant</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                            L'inscription à une formation est réservée aux étudiants.
+                        </MudAlert>
+                    }
+                </div>
+
+            </main>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private FormationDTO? _formation;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private bool _isAuthenticated;
+    private bool _isStudent;
+    private bool _isEnrolled;
+    private bool _isEnrolling;
+    private string? _currentUserId;
+    private string? _actionMessage;
+    private string? _actionError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadFormationAsync();
+    }
+
+    private async Task LoadFormationAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        _actionMessage = null;
+        _actionError = null;
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            _isAuthenticated = user.Identity?.IsAuthenticated == true;
+            _isStudent = user.IsInRole(AppRoles.Student);
+            _currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+
+            _formation = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{Id}");
+
+            if (_isStudent)
+            {
+                var inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>("api/inscriptions/me") ?? [];
+                _isEnrolled = inscriptions.Any(i => i.FormationId == Id);
+
+                if (_isEnrolled)
+                {
+                    NavigationManager.NavigateTo($"/etudiant/formations/{Id}");
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger les détails de la formation.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task EnrollAsync()
+    {
+        _actionError = null;
+        _actionMessage = null;
+
+        if (!_isStudent)
+        {
+            _actionError = "Seuls les étudiants peuvent s'inscrire à une formation.";
+            return;
+        }
+
+        _isEnrolling = true;
+
+        try
+        {
+            var response = await Http.PostAsync($"api/inscriptions/me/{Id}", content: null);
+            if (!response.IsSuccessStatusCode)
+            {
+                _actionError = "Impossible de finaliser l'inscription à cette formation.";
+                return;
+            }
+
+            _isEnrolled = true;
+            _actionMessage = "Inscription réussie. Redirection vers votre espace de formation...";
+            NavigationManager.NavigateTo($"/etudiant/formations/{Id}");
+        }
+        catch
+        {
+            _actionError = "Une erreur est survenue pendant l'inscription.";
+        }
+        finally
+        {
+            _isEnrolling = false;
+        }
+    }
+
+    private string BuildLoginUrl()
+        => $"/login?formationId={Id}&returnUrl={Uri.EscapeDataString($"/etudiant/formations/{Id}")}";
+
+    private string BuildStudentRegistrationUrl()
+        => $"/inscription/etudiant?formationId={Id}&returnUrl={Uri.EscapeDataString($"/etudiant/formations/{Id}")}";
+
+    private static string GetCategoryName(FormationDTO formation)
+        => formation.SousCategorie?.Categorie?.Nom
+           ?? formation.SousCategorie?.Nom
+           ?? "Sans catégorie";
+
+    private static string GetValueOrDefault(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value;
+}

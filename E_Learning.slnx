@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Core/">
+    <Project Path="E_Learning.Domain/E_Learning.Domain.csproj" />
+    <Project Path="E_learning.Interfaces/E_learning.Interfaces.csproj" />
+    <Project Path="E_learning.Models/E_learning.Models.csproj" />
+    <Project Path="E_learning.Persistence/E_learning.Persistence.csproj" />
+    <Project Path="E_learning.Repositories/E_learning.Repositories.csproj" />
+  </Folder>
+  <Project Path="E_Learning.API/E_Learning.API.csproj" />
+  <Project Path="E_learning.Client/E_learning.Client.csproj" />
+</Solution>

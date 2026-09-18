@@ -1,0 +1,181 @@
+@page "/admin/users/admins"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@inject HttpClient Http
+@inject IDialogService DialogService
+
+<PageTitle>Admins</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700;">Administrateurs</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Gestion des comptes administrateurs</MudText>
+        </div>
+        <div class="d-flex align-center gap-4">
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @FilteredUsers.Count administrateurs
+            </MudChip>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                       OnClick="OpenCreateDialogAsync"
+                       Class="py-2 px-4"
+                       Style="border-radius:4px;">
+                NOUVEL ADMIN
+            </MudButton>
+        </div>
+    </div>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" />
+                <MudText Typo="Typo.button">CRITERES DE RECHERCHE</MudText>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => _searchText = string.Empty)" Color="Color.Secondary">
+                    REINITIALISER
+                </MudButton>
+            }
+        </div>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_searchText"
+                              Placeholder="Rechercher par nom ou email..."
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              Style="border-radius:4px;" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="ma-4">@_errorMessage</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="FilteredUsers" Hover="true" Dense="true" Striped="true" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+                <HeaderContent>
+                    <MudTh>Nom complet</MudTh>
+                    <MudTh>Email</MudTh>
+                    <MudTh>Actif</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@($"{context.FirstName} {context.LastName}")</MudTd>
+                    <MudTd>@context.Email</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Variant="Variant.Filled" Size="Size.Small">
+                            @(context.IsActive ? "Oui" : "Non")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => OpenEditDialogAsync(context.Id)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteAsync(context.Id)" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Aucun administrateur trouvé.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Lignes par page:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<AdminUserDto> _users = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchText = string.Empty;
+
+    private List<AdminUserDto> FilteredUsers => _users
+        .Where(u =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || u.FirstName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || u.LastName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+            || u.Email.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(u => u.LastName)
+        .ThenBy(u => u.FirstName)
+        .ToList();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        try
+        {
+            _users = await Http.GetFromJsonAsync<List<AdminUserDto>>($"api/users/by-role/{AppRoles.Admin}") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger la liste.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OpenCreateDialogAsync()
+    {
+        var parameters = new DialogParameters { { nameof(UserEditorDialog.DefaultRole), AppRoles.Admin } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<UserEditorDialog>("Nouvel administrateur", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task OpenEditDialogAsync(string id)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(UserEditorDialog.UserId), id },
+            { nameof(UserEditorDialog.DefaultRole), AppRoles.Admin }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<UserEditorDialog>("Modifier administrateur", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task DeleteAsync(string id)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Confirmation",
+            "Voulez-vous vraiment supprimer cet administrateur ?",
+            yesText: "Supprimer",
+            cancelText: "Annuler");
+
+        if (confirm != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/users/{id}");
+            if (!response.IsSuccessStatusCode) { _errorMessage = "Suppression impossible."; return; }
+            _users.RemoveAll(u => u.Id == id);
+        }
+        catch { _errorMessage = "Erreur pendant la suppression."; }
+    }
+}

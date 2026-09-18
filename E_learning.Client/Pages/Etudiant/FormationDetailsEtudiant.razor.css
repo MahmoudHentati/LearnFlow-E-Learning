@@ -1,0 +1,347 @@
+.student-formation-details {
+    color: var(--app-text, var(--layout-text, #eef2ff));
+}
+
+.student-hero {
+    padding: 24px 28px;
+    border-radius: 18px;
+    border: 1px solid var(--app-border, rgba(255, 255, 255, 0.1));
+    background:
+        radial-gradient(circle at top right, rgba(124, 158, 248, 0.14), transparent 34%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+    box-shadow: 0 18px 36px rgba(10, 14, 34, 0.16);
+}
+
+.back-btn {
+    padding-left: 0;
+}
+
+.stat-card,
+.content-shell,
+.info-card,
+.module-tab-shell,
+.resource-card,
+.evaluation-card,
+.student-detail-card,
+.student-result-card,
+.submitted-work-box,
+.question-card {
+    color: inherit !important;
+    border-color: var(--app-border, rgba(255, 255, 255, 0.1)) !important;
+    background: var(--app-surface-strong, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.stat-card {
+    min-height: 108px;
+    border-radius: 16px;
+    box-shadow: 0 12px 26px rgba(10, 14, 34, 0.16);
+}
+
+.compact-stat {
+    min-height: auto;
+}
+
+.stat-label {
+    color: var(--app-muted, var(--layout-muted, #9aa8cc));
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.stat-value {
+    margin-top: 10px;
+    font-weight: 700;
+}
+
+.content-shell {
+    border-radius: 18px;
+    box-shadow: 0 18px 36px rgba(10, 14, 34, 0.16);
+}
+
+.overview-grid {
+    align-items: stretch;
+}
+
+.overview-main-card,
+.overview-side-card,
+.student-detail-card {
+    border-radius: 16px;
+}
+
+.overview-highlight-card {
+    background:
+        radial-gradient(circle at top right, rgba(124, 158, 248, 0.14), transparent 34%),
+        var(--app-surface-strong, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.overview-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.overview-heading {
+    margin-top: 4px;
+    font-weight: 700;
+}
+
+.overview-block {
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.overview-block.mb-0 {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.overview-label,
+.resource-eyebrow {
+    color: var(--app-muted, var(--layout-muted, #9aa8cc));
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.overview-value,
+.resource-title {
+    overflow-wrap: anywhere;
+}
+
+.overview-kv {
+    display: grid;
+    grid-template-columns: minmax(0, 170px) minmax(0, 1fr);
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.overview-kv.mb-0 {
+    border-bottom: 0;
+}
+
+.overview-kv-key {
+    color: var(--app-muted, var(--layout-muted, #9aa8cc));
+    font-weight: 600;
+}
+
+.overview-kv-val {
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.module-panels ::deep(.mud-expand-panel) {
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.module-panels ::deep(.mud-expand-panel-header) {
+    font-weight: 700;
+}
+
+.module-tab-shell {
+    margin-top: 8px;
+    border-radius: 16px;
+}
+
+.quiz-panels ::deep(.mud-expand-panel) {
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.quiz-panels ::deep(.mud-expand-panel-header) {
+    font-weight: 700;
+}
+
+.quiz-panel-item {
+    margin-bottom: 10px;
+}
+
+.resource-grid,
+.evaluation-grid,
+.question-list,
+.student-result-list {
+    display: grid;
+    gap: 14px;
+}
+
+.resource-card,
+.evaluation-card,
+.student-result-card,
+.submitted-work-box,
+.question-card {
+    padding: 18px;
+    border-radius: 16px;
+}
+
+.resource-card-head,
+.student-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.quiz-card-head {
+    margin-bottom: 4px;
+}
+
+.resource-meta-row,
+.student-result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    margin-top: 14px;
+    color: var(--app-muted, var(--layout-muted, #9aa8cc));
+}
+
+.resource-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.resource-action-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    color: #0f172a;
+    background: #90caf9;
+}
+
+.resource-action-link.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.student-media-preview {
+    width: 100%;
+    margin-top: 14px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.75);
+    max-height: 320px;
+}
+
+.question-list {
+    margin-top: 14px;
+}
+
+.question-card {
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.avis-card {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03)) !important;
+}
+
+.submitted-answer-label {
+    display: block;
+    margin-top: 10px;
+    color: var(--app-muted, var(--layout-muted, #9aa8cc));
+}
+
+.test-upload-box {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px dashed rgba(144, 202, 249, 0.4);
+    background: rgba(144, 202, 249, 0.08);
+}
+
+.test-upload-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    background: rgba(144, 202, 249, 0.18);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.test-upload-input {
+    color: inherit;
+}
+
+.test-upload-help {
+    color: var(--app-muted, var(--layout-muted, #9aa8cc));
+    font-size: 0.9rem;
+}
+
+.student-section-title {
+    font-weight: 700;
+}
+
+.content-empty-state {
+    margin: 4px 0;
+}
+
+.student-formation-details ::deep(.mud-paper),
+.student-formation-details ::deep(.mud-typography),
+.student-formation-details ::deep(.mud-tabs-tabbar),
+.student-formation-details ::deep(.mud-input),
+.student-formation-details ::deep(.mud-input-control),
+.student-formation-details ::deep(.mud-radio-group),
+.student-formation-details ::deep(.mud-radio) {
+    color: inherit;
+}
+
+.student-formation-details ::deep(.mud-tabs-tabbar) {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.student-formation-details ::deep(.mud-alert-outlined) {
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+@media (max-width: 960px) {
+    .overview-kv {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .overview-kv-val {
+        text-align: left;
+    }
+}
+
+@media (max-width: 768px) {
+    .student-hero,
+    .content-shell {
+        padding: 18px;
+    }
+
+    .resource-card-head,
+    .student-section-head,
+    .overview-section-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .resource-actions,
+    .resource-meta-row,
+    .student-result-meta {
+        width: 100%;
+    }
+
+    .resource-action-link {
+        width: 100%;
+    }
+}

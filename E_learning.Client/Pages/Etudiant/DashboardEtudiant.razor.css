@@ -1,0 +1,347 @@
+/* ═══════════════════════════════════════════════
+   DashboardEtudiant.razor.css – Modèle EduLearn
+   ═══════════════════════════════════════════════ */
+
+.dashboard-container {
+    background: linear-gradient(135deg, #1a1f3c 0%, #12172e 100%);
+    min-height: 100vh;
+    font-family: 'Outfit', sans-serif;
+    color: #eef0f8;
+    display: flex;
+    flex-direction: column;
+}
+
+.dash-layout {
+    display: flex;
+    flex: 1;
+    padding-top: 16px;
+}
+
+.dash-sidebar {
+    width: 260px;
+    background: transparent;
+    padding: 24px;
+}
+
+.sidebar-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6872a0;
+    margin-bottom: 16px;
+    margin-left: 12px;
+}
+
+.nav-menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item {
+    margin-bottom: 8px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    color: #b0b8d9;
+    text-decoration: none;
+    font-weight: 500;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.nav-link:hover {
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+}
+
+.nav-item.active .nav-link {
+    background: linear-gradient(135deg, rgba(91,127,250,0.15), rgba(124,93,235,0.15));
+    border-left: 3px solid #7c9ef8;
+    color: #fff;
+}
+
+.nav-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.dash-main {
+    flex: 1;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.welcome-box {
+    background: linear-gradient(135deg, #272f54, #1f2545);
+    border-radius: 20px;
+    padding: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 32px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.welcome-text {
+    position: relative;
+    z-index: 2;
+}
+
+.welcome-text h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+.welcome-text p {
+    margin: 0;
+    color: #b0b8d9;
+    font-size: 1.05rem;
+}
+
+.welcome-illustration {
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 200px;
+    height: 200px;
+}
+
+.abstract-shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(40px);
+}
+
+.shape-1 {
+    width: 120px;
+    height: 120px;
+    background: rgba(124,158,248,0.4);
+    top: 20px;
+    right: 40px;
+}
+
+.shape-2 {
+    width: 90px;
+    height: 90px;
+    background: rgba(183,148,244,0.3);
+    bottom: 20px;
+    left: 20px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: rgba(35, 42, 80, 0.4);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    background: rgba(35, 42, 80, 0.8);
+}
+
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+.stat-icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+.bg-indigo { background: linear-gradient(135deg, #5b7ffa, #4a6ef0); }
+.bg-violet { background: linear-gradient(135deg, #a78bfa, #805ad5); }
+.bg-green { background: linear-gradient(135deg, #4ade80, #38a169); }
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #8892ae;
+    font-weight: 500;
+}
+
+.resume-section {
+    background: rgba(26, 31, 60, 0.4);
+    border-radius: 20px;
+    padding: 32px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.quick-overview {
+    margin-bottom: 32px;
+}
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+}
+
+.overview-card {
+    display: grid;
+    gap: 8px;
+    padding: 20px;
+    border-radius: 16px;
+    background: rgba(35, 42, 80, 0.6);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.overview-card strong {
+    font-size: 1.6rem;
+    color: #fff;
+}
+
+.overview-label {
+    font-size: 0.82rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #8e98b6;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.view-all {
+    color: #7c9ef8;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.view-all:hover {
+    text-decoration: underline;
+}
+
+.progress-card {
+    display: flex;
+    background: rgba(35, 42, 80, 0.6);
+    border-radius: 16px;
+    padding: 20px;
+    align-items: center;
+    gap: 24px;
+    border: 1px solid rgba(255,255,255,0.04);
+}
+
+.progress-card__thumb {
+    width: 100px;
+    height: 100px;
+    border-radius: 12px;
+    opacity: 0.8;
+}
+
+.progress-card__content {
+    flex: 1;
+}
+
+.course-category {
+    font-size: 0.75rem;
+    background: rgba(124,158,248,0.15);
+    color: #7c9ef8;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.course-title {
+    margin: 12px 0 4px 0;
+    font-size: 1.2rem;
+}
+
+.course-instructor {
+    font-size: 0.85rem;
+    color: #8892ae;
+    margin-bottom: 16px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #b0b8d9;
+    margin-bottom: 8px;
+}
+
+.progress-bar-bg {
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7c9ef8, #b794f4);
+    border-radius: 3px;
+}
+
+.btn-play {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #5b7ffa;
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.btn-play svg {
+    width: 20px;
+    height: 20px;
+}
+
+.btn-play:hover {
+    background: #4a6ef0;
+    transform: scale(1.05);
+}

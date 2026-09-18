@@ -1,0 +1,406 @@
+@page "/formations"
+@* @attribute [Authorize] *@
+@using System.Security.Claims
+@using E_learning.Models.Helpers
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="dashboard-container">
+    <div class="dash-layout">
+        <aside class="dash-sidebar">
+            <h3 class="sidebar-title">Catégories</h3>
+
+            <ul class="category-list">
+                <li class="category-item @(_selectedCategoryId is null ? "active" : string.Empty)">
+                    <button class="category-btn" @onclick="() => SelectCategory(null)">
+                        Toutes les formations
+                    </button>
+                </li>
+
+                @foreach (var category in _allCategories)
+                {
+                    var subCategories = GetSubCategories(category.Id);
+                    var isCategorySelected = _selectedCategoryId == category.Id && _selectedSousCategoryId is null;
+                    var isExpanded = _expandedCategoryId == category.Id;
+                    <li class="category-item @(isCategorySelected ? "active" : string.Empty)">
+                        <button class="category-btn" @onclick="() => ToggleCategory(category.Id)">
+                            <span>@category.Nom</span>
+                            <MudIcon Icon="@(isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Class="category-chevron" />
+                        </button>
+
+                        @if (isExpanded)
+                        {
+                            <div class="subcategory-panel">
+                                <button class="subcategory-btn subcategory-btn--all" @onclick="() => SelectCategory(category.Id)">
+                                    Toutes les formations
+                                </button>
+
+                                @if (subCategories.Count == 0)
+                                {
+                                    <div class="subcategory-empty">Aucune sous-catégorie pour le moment.</div>
+                                }
+                                else
+                                {
+                                    <ul class="subcategory-list">
+                                        @foreach (var subCategory in subCategories)
+                                        {
+                                            var isSubSelected = _selectedSousCategoryId == subCategory.Id;
+                                            <li class="category-item @(isSubSelected ? "active" : string.Empty)">
+                                                <button class="subcategory-btn" @onclick="() => SelectSubCategory(category.Id, subCategory.Id)">
+                                                    @subCategory.Nom
+                                                </button>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+
+                                @if (!CategoryHasFormations(category.Id))
+                                {
+                                    <div class="subcategory-empty">Aucune formation disponible pour cette catégorie.</div>
+                                }
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        </aside>
+
+        <main class="dash-main">
+            <div class="dash-main__header">
+                <h2>@GetSelectedHeading()</h2>
+                <span class="results-count">@VisibleFormations.Count résultat(s)</span>
+            </div>
+
+            <div class="dash-search">
+                <input type="text"
+                       placeholder="Rechercher une formation..."
+                       value="@_searchText"
+                       @oninput="OnSearchInput" />
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="dash-search-icon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_actionMessage))
+            {
+                <MudAlert Severity="Severity.Success" Variant="Variant.Filled" Class="mb-3">@_actionMessage</MudAlert>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_actionError))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_actionError</MudAlert>
+            }
+
+            @if (_isLoading)
+            {
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" Class="mt-6" />
+            }
+            else if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+            }
+            else if (VisibleFormations.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Aucune formation trouvée.</MudAlert>
+            }
+            else
+            {
+                <div class="course-grid">
+                    @foreach (var formation in VisibleFormations)
+                    {
+                        <div class="course-card">
+                            <div class="course-thumb" style="background-color: @GetThumbColor(formation.Difficulte);">
+                                <span class="course-level">@(string.IsNullOrWhiteSpace(formation.Difficulte) ? "Niveau non défini" : formation.Difficulte)</span>
+                            </div>
+                            <div class="course-content">
+                                <span class="course-category">@GetCategoryName(formation)</span>
+                                <h4 class="course-title">@formation.Titre</h4>
+                                <p class="course-instructor">@FormationStatusHelper.GetDisplayLabel(formation.Statut)</p>
+
+                                <div class="course-meta">
+                                    <span class="course-duration">@(formation.Modules?.Count ?? 0) module(s)</span>
+                                    <span class="course-duration">@(formation.DateCreation?.ToString("yyyy-MM-dd") ?? "-")</span>
+                                </div>
+                            </div>
+                            <div class="course-footer">
+                                @if (_isStudent && _enrolledFormationIds.Contains(formation.Id))
+                                {
+                                    <a href="@GetStudentFormationUrl(formation.Id)" class="btn-enroll">Continuer</a>
+                                }
+                                else
+                                {
+                                    @if (!_isInstructor || IsOwnedByCurrentInstructor(formation))
+                                    {
+                                        <a href="@GetFormationDetailsUrl(formation.Id)" class="course-price">Voir détails</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="course-price course-price--locked">Non consultable</span>
+                                    }
+
+                                    @if (_isStudent)
+                                    {
+                                        <button type="button"
+                                                class="btn-enroll"
+                                                disabled="@(_enrollingFormationId == formation.Id)"
+                                                @onclick="() => EnrollAsync(formation.Id)">
+                                            @(_enrollingFormationId == formation.Id ? "Inscription..." : "S'inscrire")
+                                        </button>
+                                    }
+                                    else if (!_isAuthenticated)
+                                    {
+                                        <a href="@BuildFormationRegistrationUrl(formation.Id)" class="btn-enroll">S'inscrire</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="btn-enroll btn-enroll--disabled">Réservé étudiants</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </main>
+    </div>
+</div>
+
+@code {
+    private List<FormationDTO> _formations = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private List<CategorieDTO> _allCategories = [];
+    private List<SousCategorieDTO> _allSousCategories = [];
+    private int? _selectedCategoryId;
+    private int? _selectedSousCategoryId;
+    private int? _expandedCategoryId;
+    private string _searchText = string.Empty;
+    private bool _isAuthenticated;
+    private bool _isStudent;
+    private bool _isInstructor;
+    private string? _currentUserId;
+    private int? _enrollingFormationId;
+    private readonly HashSet<int> _enrolledFormationIds = [];
+    private string? _actionMessage;
+    private string? _actionError;
+
+    private IReadOnlyList<FormationDTO> VisibleFormations =>
+        _formations
+            .Where(f => FormationStatusHelper.IsActive(f.Statut))
+            .Where(f => _selectedCategoryId is null
+                || f.SousCategorie?.Categorie?.Id == _selectedCategoryId)
+            .Where(f => _selectedSousCategoryId is null
+                || f.SousCategorieId == _selectedSousCategoryId)
+            .Where(f => string.IsNullOrWhiteSpace(_searchText)
+                || (!string.IsNullOrWhiteSpace(f.Titre)
+                    && f.Titre.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                || (!string.IsNullOrWhiteSpace(f.Description)
+                    && f.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated == true;
+        _isStudent = user.IsInRole(AppRoles.Student);
+        _isInstructor = user.IsInRole(AppRoles.Instructor);
+        _currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+
+        await LoadFormationsAsync();
+        await LoadCategoriesAsync();
+
+        if (_isStudent)
+        {
+            await LoadMyEnrollmentsAsync();
+        }
+    }
+
+    private async Task LoadFormationsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _formations = await Http.GetFromJsonAsync<List<FormationDTO>>("api/formation") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger les formations.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        try
+        {
+            _allCategories = await Http.GetFromJsonAsync<List<CategorieDTO>>("api/categories") ?? [];
+            _allSousCategories = await Http.GetFromJsonAsync<List<SousCategorieDTO>>("api/souscategories") ?? [];
+        }
+        catch
+        {
+            _allCategories = [];
+            _allSousCategories = [];
+        }
+    }
+
+    private static string GetCategoryName(FormationDTO formation)
+        => formation.SousCategorie?.Categorie?.Nom
+           ?? formation.SousCategorie?.Nom
+           ?? "Sans catégorie";
+
+    private static string GetThumbColor(string? difficulte)
+        => difficulte?.Trim().ToLowerInvariant() switch
+        {
+            "débutant" => "#61dafb",
+            "intermédiaire" => "#FF3366",
+            "avance" or "avancé" => "#4CAF50",
+            _ => "#6b7280"
+        };
+
+    private void SelectCategory(int? categoryId)
+    {
+        _selectedCategoryId = categoryId;
+        _selectedSousCategoryId = null;
+        _expandedCategoryId = categoryId;
+    }
+
+    private void SelectSubCategory(int categoryId, int subCategoryId)
+    {
+        _selectedCategoryId = categoryId;
+        _selectedSousCategoryId = subCategoryId;
+        _expandedCategoryId = categoryId;
+    }
+
+    private void ToggleCategory(int categoryId)
+    {
+        if (_expandedCategoryId == categoryId)
+        {
+            _expandedCategoryId = null;
+            return;
+        }
+
+        _expandedCategoryId = categoryId;
+    }
+
+    private void OnSearchInput(ChangeEventArgs args)
+    {
+        _searchText = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private List<SousCategorieDTO> GetSubCategories(int categoryId)
+        => _allSousCategories
+            .Where(sc => sc.CategorieId == categoryId)
+            .OrderBy(sc => sc.Nom)
+            .ToList();
+
+    private bool CategoryHasFormations(int categoryId)
+        => _formations.Any(f =>
+            FormationStatusHelper.IsActive(f.Statut) &&
+            f.SousCategorie?.Categorie?.Id == categoryId);
+
+    private string GetSelectedHeading()
+    {
+        if (_selectedSousCategoryId is not null)
+        {
+            var subCategory = _allSousCategories.FirstOrDefault(sc => sc.Id == _selectedSousCategoryId);
+            if (subCategory is not null)
+            {
+                return subCategory.Nom;
+            }
+        }
+
+        if (_selectedCategoryId is not null)
+        {
+            var category = _allCategories.FirstOrDefault(c => c.Id == _selectedCategoryId);
+            if (category is not null)
+            {
+                return category.Nom;
+            }
+        }
+
+        return "Toutes les formations";
+    }
+
+    private async Task LoadMyEnrollmentsAsync()
+    {
+        try
+        {
+            var inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>("api/inscriptions/me") ?? [];
+            _enrolledFormationIds.Clear();
+
+            foreach (var formationId in inscriptions.Select(i => i.FormationId).Where(id => id > 0))
+            {
+                _enrolledFormationIds.Add(formationId);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task EnrollAsync(int formationId)
+    {
+        _actionMessage = null;
+        _actionError = null;
+
+        if (!_isAuthenticated)
+        {
+            NavigationManager.NavigateTo(BuildFormationRegistrationUrl(formationId));
+            return;
+        }
+
+        if (!_isStudent)
+        {
+            _actionError = "Seuls les étudiants peuvent s'inscrire aux formations.";
+            return;
+        }
+
+        if (_enrolledFormationIds.Contains(formationId))
+        {
+            NavigationManager.NavigateTo($"/etudiant/formations/{formationId}");
+            return;
+        }
+
+        _enrollingFormationId = formationId;
+
+        try
+        {
+            var response = await Http.PostAsync($"api/inscriptions/me/{formationId}", content: null);
+            if (!response.IsSuccessStatusCode)
+            {
+                _actionError = "Impossible de vous inscrire à cette formation.";
+                return;
+            }
+
+            _enrolledFormationIds.Add(formationId);
+            NavigationManager.NavigateTo($"/etudiant/formations/{formationId}");
+        }
+        catch
+        {
+            _actionError = "Erreur pendant l'inscription.";
+        }
+        finally
+        {
+            _enrollingFormationId = null;
+        }
+    }
+
+    private static string BuildFormationRegistrationUrl(int formationId)
+        => $"/inscription/etudiant?formationId={formationId}&returnUrl={Uri.EscapeDataString($"/etudiant/formations/{formationId}")}";
+
+    private static string GetStudentFormationUrl(int formationId)
+        => $"/etudiant/formations/{formationId}";
+
+    private string GetFormationDetailsUrl(int formationId)
+        => $"/formations/{formationId}";
+
+    private bool IsOwnedByCurrentInstructor(FormationDTO formation)
+        => _isInstructor
+           && !string.IsNullOrWhiteSpace(_currentUserId)
+           && string.Equals(formation.FormateurId, _currentUserId, StringComparison.OrdinalIgnoreCase);
+}

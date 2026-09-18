@@ -1,0 +1,171 @@
+@page "/etudiant-mes-formations"
+@attribute [Authorize(Roles = "Student")]
+@inject HttpClient Http
+
+<PageTitle>Mes formations</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.MenuBook" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700;">Mes formations</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Toutes les formations auxquelles vous êtes inscrit</MudText>
+        </div>
+        <div class="d-flex align-center gap-4">
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @FilteredInscriptions.Count formation(s)
+            </MudChip>
+            <MudChip T="string" Color="Color.Info" Variant="Variant.Text" Size="Size.Small" Class="font-weight-bold">
+                @($"{GetAverageProgress():0}% moyen")
+            </MudChip>
+        </div>
+    </div>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" />
+                <MudText Typo="Typo.button">CRITERES DE RECHERCHE</MudText>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => _searchText = string.Empty)" Color="Color.Secondary">
+                    REINITIALISER
+                </MudButton>
+            }
+        </div>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_searchText" Placeholder="Rechercher titre, categorie ou statut..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="border-radius:4px;" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="ma-4">@_errorMessage</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="FilteredInscriptions" Hover="true" Dense="true" Striped="true" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+                <HeaderContent>
+                    <MudTh>Formation</MudTh>
+                    <MudTh>Catégorie</MudTh>
+                    <MudTh>Date inscription</MudTh>
+                    <MudTh>Progression</MudTh>
+                    <MudTh>Statut</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@DisplayOrDash(context.Formation?.Titre)</MudTd>
+                    <MudTd>@GetCategoryName(context.Formation)</MudTd>
+                    <MudTd>@(context.DateInscription?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
+                    <MudTd>@($"{NormalizeProgress(context.Progression):0}%")</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetProgressColor(context.Progression)">
+                            @GetProgressLabel(context.Progression)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        @if (context.FormationId > 0)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Primary" Size="Size.Small" Href="@($"/etudiant/formations/{context.FormationId}")" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Aucune formation trouvée.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Lignes par page:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<InscriptionDTO> _inscriptions = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchText = string.Empty;
+
+    private List<InscriptionDTO> FilteredInscriptions => _inscriptions
+        .Where(inscription =>
+            string.IsNullOrWhiteSpace(_searchText)
+            || Contains(inscription.Formation?.Titre, _searchText)
+            || Contains(GetCategoryName(inscription.Formation), _searchText)
+            || Contains(GetProgressLabel(inscription.Progression), _searchText))
+        .OrderByDescending(inscription => inscription.DateInscription)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>("api/inscriptions/me") ?? [];
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger vos formations.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetCategoryName(FormationDTO? formation)
+        => formation?.SousCategorie?.Categorie?.Nom
+           ?? formation?.SousCategorie?.Nom
+           ?? "Sans catégorie";
+
+    private static float NormalizeProgress(float progress)
+        => Math.Clamp(progress, 0, 100);
+
+    private float GetAverageProgress()
+    {
+        if (_inscriptions.Count == 0)
+        {
+            return 0;
+        }
+
+        return _inscriptions.Average(inscription => NormalizeProgress(inscription.Progression));
+    }
+
+    private static Color GetProgressColor(float progress)
+        => NormalizeProgress(progress) switch
+        {
+            >= 100 => Color.Success,
+            >= 60 => Color.Info,
+            >= 25 => Color.Warning,
+            _ => Color.Default
+        };
+
+    private static string GetProgressLabel(float progress)
+        => NormalizeProgress(progress) switch
+        {
+            >= 100 => "Terminée",
+            >= 60 => "En bonne voie",
+            >= 25 => "En cours",
+            _ => "À démarrer"
+        };
+
+    private static bool Contains(string? value, string search)
+        => value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+}

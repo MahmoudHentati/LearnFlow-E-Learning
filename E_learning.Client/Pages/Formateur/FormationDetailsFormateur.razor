@@ -1,0 +1,2216 @@
+@page "/formateur/formations/{Id:int}"
+@using E_Learning.Models.Enums
+@using E_learning.Models.Helpers
+@using System.IO
+@attribute [Authorize(Roles = "Instructor")]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<PageTitle>Détail formation formateur</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8 mb-6 instructor-formation-details">
+    <div class="instructor-hero mb-6">
+        <div class="d-flex justify-space-between align-center gap-4 flex-wrap">
+            <div>
+                <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => NavigationManager.NavigateTo("/formateur-mes-formations"))" Class="mb-2 back-btn">
+                    Retour aux formations
+                </MudButton>
+                <div class="d-flex align-center gap-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Class" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h4" Style="font-weight:700;">Gestion de la formation</MudText>
+                </div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Vue complète formateur avec gestion des contenus et évaluations</MudText>
+            </div>
+            <MudStack Row="true" Spacing="1" Style="flex-wrap:wrap;">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="OpenEditDialogAsync">Modifier formation</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="@(() => NavigationManager.NavigateTo($"/formateur/formation/{Id}/etudiants"))">Détails étudiants</MudButton>
+            </MudStack>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center pa-8">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+    }
+    else if (_formation is null)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Formation introuvable.</MudAlert>
+    }
+    else
+    {
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Modules</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@Modules.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Étudiants inscrits</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@_inscriptions.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Quiz / Questions</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@TotalQuizzes / @TotalQuestions</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Tests / Ressources</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@TotalTests / @(TotalVideos + TotalDocuments)</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Outlined="true" Elevation="0" Class="pa-4 mb-4 content-shell">
+            <MudTabs Rounded="true" Border="true" PanelClass="tab-panel">
+                <MudTabPanel Text="Aperçu">
+                    <MudGrid Class="mt-2 overview-grid">
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-main-card">
+                                <div class="overview-block">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Titre</MudText>
+                                    <MudText Typo="Typo.h6" Class="overview-value">@DisplayOrDash(_formation.Titre)</MudText>
+                                </div>
+                                <div class="overview-block">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Description</MudText>
+                                    <MudText Typo="Typo.body1" Class="overview-value">@DisplayOrDash(_formation.Description)</MudText>
+                                </div>
+                                <div class="overview-block mb-0">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Prérequis</MudText>
+                                    <MudText Typo="Typo.body1" Class="overview-value">@DisplayOrDash(_formation.Prerequis)</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-side-card">
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Formateur</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.FormateurNom)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Difficulté</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.Difficulte)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Statut</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@FormationStatusHelper.GetDisplayLabel(_formation.Statut)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Catégorie</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.SousCategorie?.Categorie?.Nom)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Sous-catégorie</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.SousCategorie?.Nom)</MudText>
+                                </div>
+                                <div class="overview-kv mb-0">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Date création</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@(_formation.DateCreation?.ToString("yyyy-MM-dd") ?? "-")</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-side-card">
+                                <div class="student-section-head">
+                                    <MudIcon Icon="@Icons.Material.Filled.RateReview" Color="Color.Warning" />
+                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Avis étudiants</MudText>
+                                </div>
+                                <MudGrid>
+                                    <MudItem xs="12" md="3">
+                                        <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                            <MudText Typo="Typo.caption" Class="stat-label">Nombre d'avis</MudText>
+                                            <MudText Typo="Typo.h6" Class="stat-value">@_avis.Count</MudText>
+                                        </MudPaper>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                            <MudText Typo="Typo.caption" Class="stat-label">Moyenne</MudText>
+                                            <MudText Typo="Typo.h6" Class="stat-value">@GetAverageAvisLabel()</MudText>
+                                        </MudPaper>
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                            <MudText Typo="Typo.caption" Class="stat-label">Dernier avis</MudText>
+                                            <MudText Typo="Typo.body2">@GetLatestAvisSummary()</MudText>
+                                        </MudPaper>
+                                    </MudItem>
+                                </MudGrid>
+
+                                @if (_avis.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state mt-3">Aucun avis publié pour cette formation.</MudAlert>
+                                }
+                                else
+                                {
+                                    <div class="student-result-list mt-3">
+                                        @foreach (var avis in _avis.OrderByDescending(a => a.Date).Take(3))
+                                        {
+                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card avis-card">
+                                                <div class="resource-card-head">
+                                                    <div>
+                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">@GetStudentNameFromInscriptionId(avis.InscriptionId)</MudText>
+                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@GetAvisStars(avis.Note)</MudText>
+                                                    </div>
+                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning">@($"{avis.Note}/{AvisMaxNote}")</MudChip>
+                                                </div>
+                                                <MudText Typo="Typo.body2" Class="mt-2">@DisplayOrDash(avis.Commentaire)</MudText>
+                                                <MudText Typo="Typo.caption" Class="resource-eyebrow mt-2 d-block">Publié le @(avis.Date?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                            </MudPaper>
+                                        }
+                                    </div>
+                                }
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Étudiants inscrits">
+                    @if (_inscriptions.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">Aucun étudiant inscrit.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudExpansionPanels MultiExpansion="true" Class="mt-3 student-followup-panels">
+                            @foreach (var inscription in _inscriptions.OrderByDescending(i => i.DateInscription))
+                            {
+                                var quizParticipations = GetQuizParticipations(inscription.Id);
+                                var testSubmissions = GetRendus(inscription.Id);
+                                var studentAvis = GetAvis(inscription.Id);
+                                <MudExpansionPanel Text="@GetStudentPanelTitle(inscription)">
+                                    <MudGrid Class="mb-3">
+                                        <MudItem xs="12" md="3">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Email</MudText>
+                                                <MudText Typo="Typo.body2">@DisplayOrDash(inscription.Edudiant?.Email)</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="3">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Inscription</MudText>
+                                                <MudText Typo="Typo.body2">@(inscription.DateInscription?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Quiz passés</MudText>
+                                                <MudText Typo="Typo.h6" Class="stat-value">@quizParticipations.Count</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Tests rendus</MudText>
+                                                <MudText Typo="Typo.h6" Class="stat-value">@testSubmissions.Count</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Progression</MudText>
+                                                <MudText Typo="Typo.h6" Class="stat-value">@($"{GetAutomaticProgress(inscription):0}%")</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Avis</MudText>
+                                                <MudText Typo="Typo.h6" Class="stat-value">@studentAvis.Count</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <div class="student-panel-actions mb-3">
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Info">Calcul automatique depuis quiz et tests</MudChip>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.PersonRemove" OnClick="@(() => DeleteInscriptionAsync(inscription))">Retirer l'étudiant</MudButton>
+                                    </div>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" md="6">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 student-detail-card">
+                                                <div class="student-section-head">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Quiz" Color="Color.Primary" />
+                                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Quiz passés</MudText>
+                                                </div>
+
+                                                @if (quizParticipations.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucune participation quiz pour cet étudiant.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="student-result-list">
+                                                        @foreach (var participation in quizParticipations.OrderByDescending(p => p.DatePassage))
+                                                        {
+                                                            var maxScore = GetQuizMaximumScore(participation.Quiz ?? new QuizDTO());
+                                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Quiz #@participation.QuizId</MudText>
+                                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@GetQuizTitle(participation)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="@GetQuizScoreColor(participation)">@FormatQuizScore(participation, maxScore)</MudChip>
+                                                                </div>
+                                                                <div class="student-result-meta">
+                                                                    <MudText Typo="Typo.body2">Date de passage: @(participation.DatePassage?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                                    <MudText Typo="Typo.body2">Score minimum: @(participation.Quiz?.ScoreMinimum ?? 0)</MudText>
+                                                                    <MudText Typo="Typo.body2">Durée limite: @(participation.Quiz?.DLimite ?? 0) min</MudText>
+                                                                </div>
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        </MudItem>
+
+                                        <MudItem xs="12" md="6">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 student-detail-card mb-4">
+                                                <div class="student-section-head">
+                                                    <MudIcon Icon="@Icons.Material.Filled.RateReview" Color="Color.Warning" />
+                                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Avis publiés</MudText>
+                                                </div>
+
+                                                @if (studentAvis.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucun avis pour cet étudiant.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="student-result-list">
+                                                        @foreach (var avis in studentAvis.OrderByDescending(a => a.Date))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card avis-card">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Avis étudiant</MudText>
+                                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@GetAvisStars(avis.Note)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning">@($"{avis.Note}/{AvisMaxNote}")</MudChip>
+                                                                </div>
+                                                                <div class="student-result-meta">
+                                                                    <MudText Typo="Typo.body2">Date: @(avis.Date?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                                </div>
+                                                                <MudText Typo="Typo.body2" Class="mt-2">@DisplayOrDash(avis.Commentaire)</MudText>
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        </MudItem>
+
+                                        <MudItem xs="12" md="6">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 student-detail-card">
+                                                <div class="student-section-head">
+                                                    <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Info" />
+                                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Tests et rendus</MudText>
+                                                </div>
+
+                                                @if (testSubmissions.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucun rendu de test pour cet étudiant.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="student-result-list">
+                                                        @foreach (var rendu in testSubmissions.OrderByDescending(r => r.DateSoumission))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Test #@rendu.TestId</MudText>
+                                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@DisplayOrDash(rendu.Test?.Consigne)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="@GetRenduNoteColor(rendu.Note)">@FormatRenduNote(rendu.Note)</MudChip>
+                                                                </div>
+                                                                <div class="student-result-meta">
+                                                                    <MudText Typo="Typo.body2">Soumis le: @(rendu.DateSoumission?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                                    <MudText Typo="Typo.body2">Commentaire: @DisplayOrDash(rendu.CommentaireFormateur)</MudText>
+                                                                    @if (!string.IsNullOrWhiteSpace(rendu.Contenu))
+                                                                    {
+                                                                        <MudText Typo="Typo.body2">Message: @rendu.Contenu</MudText>
+                                                                    }
+                                                                </div>
+                                                                @if (!string.IsNullOrWhiteSpace(rendu.FichierUrl))
+                                                                {
+                                                                    <div class="resource-actions">
+                                                                        <a class="resource-action-link" href="@rendu.FichierUrl" target="_blank" rel="noopener noreferrer">Ouvrir le rendu</a>
+                                                                        <a class="resource-action-link secondary" href="@rendu.FichierUrl" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName($"rendu-{rendu.Id}", rendu.FichierUrl)">Télécharger</a>
+                                                                    </div>
+                                                                }
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                </MudTabPanel>
+
+                <MudTabPanel Text="Modules et contenu">
+                    <MudPaper Outlined="true" Elevation="0" Class="pa-3 mt-2 mb-3 module-create-card">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Ajouter un module</MudText>
+                        @if (!string.IsNullOrWhiteSpace(_moduleErrorMessage))
+                        {
+                            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-2">@_moduleErrorMessage</MudAlert>
+                        }
+                        <MudGrid>
+                            <MudItem xs="12" md="7">
+                                <MudTextField @bind-Value="_newModuleTitle" Label="Titre du module" Variant="Variant.Outlined" FullWidth="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudNumericField T="int" @bind-Value="_newModuleOrder" Label="Ordre" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+                            </MudItem>
+                            <MudItem xs="12" md="2" Class="d-flex align-end">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingModule" OnClick="CreateModuleAsync">
+                                    @(_isSavingModule ? "..." : "Créer")
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+
+                    @if (Modules.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Aucun module disponible.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudExpansionPanels MultiExpansion="true" Class="modules-panels">
+                            @foreach (var module in Modules)
+                            {
+                                <MudExpansionPanel Text="@($"Module {module.Ordre} - {DisplayOrDash(module.Titre)}")">
+                                    <div class="module-header-bar mb-3">
+                                        <MudStack Row="true" Spacing="1" Style="flex-wrap:wrap;">
+                                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">Quiz: @(module.Quizzes?.Count ?? 0)</MudChip>
+                                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Info">Tests: @(module.Tests?.Count ?? 0)</MudChip>
+                                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Success">Vidéos: @(module.Videos?.Count ?? 0)</MudChip>
+                                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Secondary">Documents: @(module.Documents?.Count ?? 0)</MudChip>
+                                        </MudStack>
+                                        <MudStack Row="true" Spacing="1" Style="flex-wrap:wrap;">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => StartModuleEdit(module))">Modifier</MudButton>
+                                            <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteModuleAsync(module))">Supprimer</MudButton>
+                                        </MudStack>
+                                    </div>
+
+                                    @if (_editingModuleId == module.Id)
+                                    {
+                                        <MudPaper Outlined="true" Elevation="0" Class="module-form mb-3 pa-4">
+                                            @if (!string.IsNullOrWhiteSpace(_editingModuleErrorMessage))
+                                            {
+                                                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_editingModuleErrorMessage</MudAlert>
+                                            }
+                                            <MudGrid>
+                                                <MudItem xs="12" md="7">
+                                                    <MudTextField @bind-Value="_editingModuleTitle" Label="Titre du module" Variant="Variant.Outlined" FullWidth="true" />
+                                                </MudItem>
+                                                <MudItem xs="12" md="3">
+                                                    <MudNumericField T="int" @bind-Value="_editingModuleOrder" Label="Ordre" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+                                                </MudItem>
+                                                <MudItem xs="12" md="2" Class="d-flex align-end gap-2">
+                                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingModuleEdit" OnClick="@(() => SaveModuleAsync(module))">Enregistrer</MudButton>
+                                                    <MudButton Variant="Variant.Text" OnClick="CancelModuleEdit">Annuler</MudButton>
+                                                </MudItem>
+                                            </MudGrid>
+                                        </MudPaper>
+                                    }
+
+                                    <MudPaper Outlined="true" Elevation="0" Class="pa-3 mb-3 module-tab-shell">
+                                        <MudTabs Rounded="true" Border="true" PanelClass="module-tab-panel">
+                                            <MudTabPanel Text="Vidéos">
+                                                <div class="module-tab-actions">
+                                                    <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.VideoLibrary" OnClick="@(() => StartVideoCreation(module))">
+                                                        Ajouter une vidéo
+                                                    </MudButton>
+                                                </div>
+
+                                                @if (module.Videos is null || module.Videos.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="content-empty-state">Aucune vidéo dans ce module.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="resource-grid">
+                                                        @foreach (var video in module.Videos.OrderBy(v => v.Ordre))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="resource-card resource-card-video">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Vidéo #@video.Ordre</MudText>
+                                                                        <MudText Typo="Typo.subtitle1" Class="resource-title">@DisplayOrDash(video.Titre)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Success">@($"{Math.Max(0, video.Duree)} min")</MudChip>
+                                                                </div>
+                                                                <div class="resource-meta-row">
+                                                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">@GetFileExtensionLabel(video.UrlVideo, "VIDÉO")</MudChip>
+                                                                </div>
+                                                                <div class="resource-actions">
+                                                                    <a class="resource-action-link" href="@video.UrlVideo" target="_blank" rel="noopener noreferrer">Ouvrir</a>
+                                                                    <a class="resource-action-link secondary" href="@video.UrlVideo" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName(video.Titre, video.UrlVideo)">Télécharger</a>
+                                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => StartVideoEdit(video))" />
+                                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteVideoAsync(module, video))" />
+                                                                </div>
+
+                                                                @if (_editingVideoId == video.Id)
+                                                                {
+                                                                    <MudPaper Outlined="true" Elevation="0" Class="module-form mt-2 pa-3">
+                                                                        @if (!string.IsNullOrWhiteSpace(_editingVideoErrorMessage))
+                                                                        {
+                                                                            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-2">@_editingVideoErrorMessage</MudAlert>
+                                                                        }
+                                                                        <MudGrid>
+                                                                            <MudItem xs="12" md="6">
+                                                                                <MudTextField @bind-Value="_editingVideoTitle" Label="Titre" Variant="Variant.Outlined" FullWidth="true" />
+                                                                            </MudItem>
+                                                                            <MudItem xs="12" md="3">
+                                                                                <MudNumericField T="int" @bind-Value="_editingVideoOrder" Label="Ordre" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+                                                                            </MudItem>
+                                                                            <MudItem xs="12" md="3">
+                                                                                <MudNumericField T="int" @bind-Value="_editingVideoDuration" Label="Durée (min)" Variant="Variant.Outlined" FullWidth="true" Min="0" />
+                                                                            </MudItem>
+                                                                            <MudItem xs="12" Class="d-flex gap-2">
+                                                                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingVideoEdit" OnClick="@(() => SaveVideoAsync(video))">Enregistrer</MudButton>
+                                                                                <MudButton Variant="Variant.Text" OnClick="CancelVideoEdit">Annuler</MudButton>
+                                                                            </MudItem>
+                                                                        </MudGrid>
+                                                                    </MudPaper>
+                                                                }
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+
+                                                @if (_activeVideoModuleId == module.Id)
+                                                {
+                                                    <MudPaper Class="module-form mt-3 pa-4" Elevation="0">
+                                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Nouvelle vidéo</MudText>
+                                                        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">Import vidéo locale avec filtrage des formats pris en charge.</MudText>
+
+                                                        @if (!string.IsNullOrWhiteSpace(_videoErrorMessage))
+                                                        {
+                                                            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_videoErrorMessage</MudAlert>
+                                                        }
+
+                                                        <MudGrid>
+                                                            <MudItem xs="12" md="6">
+                                                                <MudTextField @bind-Value="_videoTitle" Label="Titre" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" md="3">
+                                                                <MudNumericField T="int" @bind-Value="_videoOrder" Label="Ordre" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" md="3">
+                                                                <MudNumericField T="int" @bind-Value="_videoDuration" Label="Durée (min)" Variant="Variant.Outlined" FullWidth="true" Min="0" />
+                                                            </MudItem>
+                                                            <MudItem xs="12">
+                                                                <div class="test-upload-box">
+                                                                    <label class="test-upload-label" for="@($"video-file-{module.Id}")">Importer la vidéo</label>
+                                                                    <InputFile id="@($"video-file-{module.Id}")" OnChange="OnVideoFileSelected" class="test-upload-input" accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-matroska" />
+                                                                    <div class="test-upload-help">
+                                                                        @if (string.IsNullOrWhiteSpace(_selectedVideoFileName))
+                                                                        {
+                                                                            <span>Aucun fichier sélectionné.</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span>Fichier sélectionné : @_selectedVideoFileName</span>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </MudItem>
+                                                            <MudItem xs="12" Class="d-flex gap-2">
+                                                                <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="_isSavingVideo" OnClick="@(() => CreateVideoAsync(module))">
+                                                                    @(_isSavingVideo ? "Création..." : "Créer la vidéo")
+                                                                </MudButton>
+                                                                <MudButton Variant="Variant.Text" OnClick="CancelVideoCreation">Annuler</MudButton>
+                                                            </MudItem>
+                                                        </MudGrid>
+                                                    </MudPaper>
+                                                }
+                                            </MudTabPanel>
+
+                                            <MudTabPanel Text="Documents">
+                                                <div class="module-tab-actions">
+                                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Description" OnClick="@(() => StartDocumentCreation(module))">
+                                                        Ajouter un document
+                                                    </MudButton>
+                                                </div>
+
+                                                @if (module.Documents is null || module.Documents.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="content-empty-state">Aucun document dans ce module.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="resource-grid">
+                                                        @foreach (var doc in module.Documents.OrderBy(d => d.Ordre))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="resource-card resource-card-document">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Document #@doc.Ordre</MudText>
+                                                                        <MudText Typo="Typo.subtitle1" Class="resource-title">@DisplayOrDash(doc.Titre)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Secondary">@DisplayOrDash(doc.Format).ToUpperInvariant()</MudChip>
+                                                                </div>
+                                                                <div class="resource-meta-row">
+                                                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Ressource de support téléchargeable.</MudText>
+                                                                </div>
+                                                                <div class="resource-actions">
+                                                                    <a class="resource-action-link" href="@doc.UrlFichier" target="_blank" rel="noopener noreferrer">Ouvrir</a>
+                                                                    <a class="resource-action-link secondary" href="@doc.UrlFichier" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName(doc.Titre, doc.UrlFichier)">Télécharger</a>
+                                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => StartDocumentEdit(doc))" />
+                                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteDocumentAsync(module, doc))" />
+                                                                </div>
+
+                                                                @if (_editingDocumentId == doc.Id)
+                                                                {
+                                                                    <MudPaper Outlined="true" Elevation="0" Class="module-form mt-2 pa-3">
+                                                                        @if (!string.IsNullOrWhiteSpace(_editingDocumentErrorMessage))
+                                                                        {
+                                                                            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-2">@_editingDocumentErrorMessage</MudAlert>
+                                                                        }
+                                                                        <MudGrid>
+                                                                            <MudItem xs="12" md="8">
+                                                                                <MudTextField @bind-Value="_editingDocumentTitle" Label="Titre" Variant="Variant.Outlined" FullWidth="true" />
+                                                                            </MudItem>
+                                                                            <MudItem xs="12" md="4">
+                                                                                <MudNumericField T="int" @bind-Value="_editingDocumentOrder" Label="Ordre" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+                                                                            </MudItem>
+                                                                            <MudItem xs="12" Class="d-flex gap-2">
+                                                                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingDocumentEdit" OnClick="@(() => SaveDocumentAsync(doc))">Enregistrer</MudButton>
+                                                                                <MudButton Variant="Variant.Text" OnClick="CancelDocumentEdit">Annuler</MudButton>
+                                                                            </MudItem>
+                                                                        </MudGrid>
+                                                                    </MudPaper>
+                                                                }
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+
+                                                @if (_activeDocumentModuleId == module.Id)
+                                                {
+                                                    <MudPaper Class="module-form mt-3 pa-4" Elevation="0">
+                                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Nouveau document</MudText>
+
+                                                        @if (!string.IsNullOrWhiteSpace(_documentErrorMessage))
+                                                        {
+                                                            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_documentErrorMessage</MudAlert>
+                                                        }
+
+                                                        <MudGrid>
+                                                            <MudItem xs="12" md="8">
+                                                                <MudTextField @bind-Value="_documentTitle" Label="Titre" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" md="4">
+                                                                <MudNumericField T="int" @bind-Value="_documentOrder" Label="Ordre" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+                                                            </MudItem>
+                                                            <MudItem xs="12">
+                                                                <div class="test-upload-box">
+                                                                    <label class="test-upload-label" for="@($"document-file-{module.Id}")">Importer le document</label>
+                                                                    <InputFile id="@($"document-file-{module.Id}")" OnChange="OnDocumentFileSelected" class="test-upload-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,image/*" />
+                                                                    <div class="test-upload-help">
+                                                                        @if (string.IsNullOrWhiteSpace(_selectedDocumentFileName))
+                                                                        {
+                                                                            <span>Aucun fichier sélectionné.</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span>Fichier sélectionné : @_selectedDocumentFileName</span>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </MudItem>
+                                                            <MudItem xs="12" Class="d-flex gap-2">
+                                                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_isSavingDocument" OnClick="@(() => CreateDocumentAsync(module))">
+                                                                    @(_isSavingDocument ? "Création..." : "Créer le document")
+                                                                </MudButton>
+                                                                <MudButton Variant="Variant.Text" OnClick="CancelDocumentCreation">Annuler</MudButton>
+                                                            </MudItem>
+                                                        </MudGrid>
+                                                    </MudPaper>
+                                                }
+                                            </MudTabPanel>
+
+                                            <MudTabPanel Text="Quiz">
+                                                <div class="module-tab-actions">
+                                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Quiz" OnClick="@(() => StartQuizCreation(module))">
+                                                        Ajouter un quiz
+                                                    </MudButton>
+                                                </div>
+
+                                                @if (module.Quizzes is null || module.Quizzes.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="content-empty-state">Aucun quiz dans ce module.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <MudExpansionPanels MultiExpansion="true" Class="resource-quiz-panels">
+                                                        @foreach (var quiz in module.Quizzes.OrderBy(q => q.Id))
+                                                        {
+                                                            var maxScore = GetQuizMaximumScore(quiz);
+                                                            <MudExpansionPanel Text="@($"Quiz #{quiz.Id} - {GetQuestionCount(quiz)} question(s)")">
+                                                                <MudPaper Outlined="true" Elevation="0" Class="quiz-detail-card pa-4 mb-3">
+                                                                    <div class="resource-card-head">
+                                                                        <div>
+                                                                            <MudText Typo="Typo.caption" Class="resource-eyebrow">Évaluation</MudText>
+                                                                            <MudText Typo="Typo.subtitle1" Class="resource-title">@($"Quiz #{quiz.Id}")</MudText>
+                                                                        </div>
+                                                                        <MudStack Row="true" Spacing="1" Style="flex-wrap:wrap;">
+                                                                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">@($"{quiz.DLimite} min")</MudChip>
+                                                                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning">@($"Min {quiz.ScoreMinimum}")</MudChip>
+                                                                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Info">@($"Max {maxScore}")</MudChip>
+                                                                        </MudStack>
+                                                                    </div>
+                                                                    <div class="resource-actions mb-2">
+                                                                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => StartQuizEdit(quiz))">Modifier</MudButton>
+                                                                        <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteQuizAsync(module, quiz))">Supprimer</MudButton>
+                                                                    </div>
+
+                                                                    @if (_editingQuizId == quiz.Id)
+                                                                    {
+                                                                        <MudPaper Outlined="true" Elevation="0" Class="module-form mb-3 pa-3">
+                                                                            @if (!string.IsNullOrWhiteSpace(_editingQuizErrorMessage))
+                                                                            {
+                                                                                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-2">@_editingQuizErrorMessage</MudAlert>
+                                                                            }
+                                                                            <MudGrid>
+                                                                                <MudItem xs="12" md="6">
+                                                                                    <MudNumericField T="int" @bind-Value="_editingQuizDeadline" Label="Durée limite (min)" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+                                                                                </MudItem>
+                                                                                <MudItem xs="12" md="6">
+                                                                                    <MudNumericField T="int" @bind-Value="_editingQuizMinimumScore" Label="Score minimum" Variant="Variant.Outlined" FullWidth="true" Min="0" />
+                                                                                </MudItem>
+                                                                                <MudItem xs="12" Class="d-flex gap-2">
+                                                                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingQuizEdit" OnClick="@(() => SaveQuizAsync(quiz))">Enregistrer</MudButton>
+                                                                                    <MudButton Variant="Variant.Text" OnClick="CancelQuizEdit">Annuler</MudButton>
+                                                                                </MudItem>
+                                                                            </MudGrid>
+                                                                        </MudPaper>
+                                                                    }
+
+                                                                    @if (quiz.Questions is null || quiz.Questions.Count == 0)
+                                                                    {
+                                                                        <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucune question pour ce quiz.</MudAlert>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <div class="question-list">
+                                                                            @foreach (var question in quiz.Questions.OrderBy(q => q.Id))
+                                                                            {
+                                                                                <MudPaper Outlined="true" Elevation="0" Class="question-card">
+                                                                                    <MudText Typo="Typo.body1" Class="question-title">@DisplayOrDash(question.Enonce)</MudText>
+                                                                                    <div class="question-meta">
+                                                                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">@($"Barème {question.Bareme:0.##}")</MudChip>
+                                                                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Success">@($"Réponse {GetCorrectAnswerLabel(question)}")</MudChip>
+                                                                                    </div>
+                                                                                    <div class="resource-actions mt-2">
+                                                                                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => StartQuestionEdit(question))">Modifier</MudButton>
+                                                                                        <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteQuestionAsync(quiz, question))">Supprimer</MudButton>
+                                                                                    </div>
+
+                                                                                    @if (_editingQuestionId == question.Id)
+                                                                                    {
+                                                                                        <MudPaper Outlined="true" Elevation="0" Class="module-form mt-2 pa-3">
+                                                                                            @if (!string.IsNullOrWhiteSpace(_editingQuestionErrorMessage))
+                                                                                            {
+                                                                                                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-2">@_editingQuestionErrorMessage</MudAlert>
+                                                                                            }
+                                                                                            <MudGrid>
+                                                                                                <MudItem xs="12">
+                                                                                                    <MudTextField @bind-Value="_editingQuestionEnonce" Label="Énoncé" Variant="Variant.Outlined" FullWidth="true" />
+                                                                                                </MudItem>
+                                                                                                <MudItem xs="12" md="6">
+                                                                                                    <MudNumericField T="float" @bind-Value="_editingQuestionBareme" Label="Barème" Variant="Variant.Outlined" FullWidth="true" Min="0" />
+                                                                                                </MudItem>
+                                                                                                <MudItem xs="12" md="6">
+                                                                                                    <MudSelect T="TypeQuestion" @bind-Value="_editingQuestionCorrectAnswer" Label="Bonne réponse" Variant="Variant.Outlined" FullWidth="true">
+                                                                                                        <MudSelectItem Value="@TypeQuestion.VRAI">Vrai</MudSelectItem>
+                                                                                                        <MudSelectItem Value="@TypeQuestion.FAUX">Faux</MudSelectItem>
+                                                                                                    </MudSelect>
+                                                                                                </MudItem>
+                                                                                                <MudItem xs="12" Class="d-flex gap-2">
+                                                                                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingQuestionEdit" OnClick="@(() => SaveQuestionAsync(question))">Enregistrer</MudButton>
+                                                                                                    <MudButton Variant="Variant.Text" OnClick="CancelQuestionEdit">Annuler</MudButton>
+                                                                                                </MudItem>
+                                                                                            </MudGrid>
+                                                                                        </MudPaper>
+                                                                                    }
+                                                                                </MudPaper>
+                                                                            }
+                                                                        </div>
+                                                                    }
+
+                                                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Class="mt-2" OnClick="@(() => StartQuestionCreation(quiz))">
+                                                                        Ajouter une question
+                                                                    </MudButton>
+
+                                                                    @if (_activeQuestionQuizId == quiz.Id)
+                                                                    {
+                                                                        <MudPaper Class="module-form mt-3 pa-4" Elevation="0">
+                                                                            <MudText Typo="Typo.subtitle2" Class="mb-2">Nouvelle question</MudText>
+
+                                                                            @if (!string.IsNullOrWhiteSpace(_questionErrorMessage))
+                                                                            {
+                                                                                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_questionErrorMessage</MudAlert>
+                                                                            }
+
+                                                                            <MudGrid>
+                                                                                <MudItem xs="12">
+                                                                                    <MudTextField @bind-Value="_questionEnonce" Label="Énoncé" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+                                                                                </MudItem>
+                                                                                <MudItem xs="12" md="6">
+                                                                                    <MudNumericField T="float" @bind-Value="_questionBareme" Label="Barème" Variant="Variant.Outlined" FullWidth="true" Min="0" />
+                                                                                </MudItem>
+                                                                                <MudItem xs="12" md="6">
+                                                                                    <MudSelect T="TypeQuestion" @bind-Value="_questionCorrectAnswer" Label="Bonne réponse" Variant="Variant.Outlined" FullWidth="true">
+                                                                                        <MudSelectItem Value="@TypeQuestion.VRAI">Vrai</MudSelectItem>
+                                                                                        <MudSelectItem Value="@TypeQuestion.FAUX">Faux</MudSelectItem>
+                                                                                    </MudSelect>
+                                                                                </MudItem>
+                                                                                <MudItem xs="12" Class="d-flex gap-2">
+                                                                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingQuestion" OnClick="@(() => CreateQuestionAsync(quiz))">
+                                                                                        @(_isSavingQuestion ? "Création..." : "Créer la question")
+                                                                                    </MudButton>
+                                                                                    <MudButton Variant="Variant.Text" OnClick="CancelQuestionCreation">Annuler</MudButton>
+                                                                                </MudItem>
+                                                                            </MudGrid>
+                                                                        </MudPaper>
+                                                                    }
+                                                                </MudPaper>
+                                                            </MudExpansionPanel>
+                                                        }
+                                                    </MudExpansionPanels>
+                                                }
+
+                                                @if (_activeQuizModuleId == module.Id)
+                                                {
+                                                    <MudPaper Class="module-form mt-3 pa-4" Elevation="0">
+                                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Nouveau quiz</MudText>
+
+                                                        @if (!string.IsNullOrWhiteSpace(_quizErrorMessage))
+                                                        {
+                                                            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_quizErrorMessage</MudAlert>
+                                                        }
+
+                                                        <MudGrid>
+                                                            <MudItem xs="12" md="6">
+                                                                <MudNumericField T="int" @bind-Value="_quizDeadline" Label="Durée limite (min)" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" md="6">
+                                                                <MudNumericField T="int" @bind-Value="_quizMinimumScore" Label="Score minimum" Variant="Variant.Outlined" FullWidth="true" Min="0" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" Class="d-flex gap-2">
+                                                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingQuiz" OnClick="@(() => CreateQuizAsync(module))">
+                                                                    @(_isSavingQuiz ? "Création..." : "Créer le quiz")
+                                                                </MudButton>
+                                                                <MudButton Variant="Variant.Text" OnClick="CancelQuizCreation">Annuler</MudButton>
+                                                            </MudItem>
+                                                        </MudGrid>
+                                                    </MudPaper>
+                                                }
+                                            </MudTabPanel>
+
+                                            <MudTabPanel Text="Tests">
+                                                <div class="module-tab-actions">
+                                                    <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Assignment" OnClick="@(() => StartTestCreation(module))">
+                                                        Ajouter un test
+                                                    </MudButton>
+                                                </div>
+
+                                                @if (module.Tests is null || module.Tests.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="content-empty-state">Aucun test dans ce module.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="resource-grid">
+                                                        @foreach (var test in module.Tests.OrderBy(t => t.Id))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="resource-card resource-card-test">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Test #@test.Id</MudText>
+                                                                        <MudText Typo="Typo.subtitle1" Class="resource-title">@DisplayOrDash(test.Consigne)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Info">Évaluation</MudChip>
+                                                                </div>
+                                                                <div class="resource-meta-row">
+                                                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Consigne et support téléchargeable pour les étudiants.</MudText>
+                                                                </div>
+                                                                @if (!string.IsNullOrWhiteSpace(test.FichierConsigneUrl))
+                                                                {
+                                                                <div class="resource-actions">
+                                                                        <a class="resource-action-link" href="@test.FichierConsigneUrl" target="_blank" rel="noopener noreferrer">Ouvrir</a>
+                                                                        <a class="resource-action-link secondary" href="@test.FichierConsigneUrl" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName($"test-{test.Id}", test.FichierConsigneUrl)">Télécharger</a>
+                                                                    </div>
+                                                                }
+                                                                <div class="resource-actions">
+                                                                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => StartTestEdit(test))">Modifier</MudButton>
+                                                                    <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="@(() => DeleteTestAsync(module, test))">Supprimer</MudButton>
+                                                                </div>
+
+                                                                @if (_editingTestId == test.Id)
+                                                                {
+                                                                    <MudPaper Outlined="true" Elevation="0" Class="module-form mt-2 pa-3">
+                                                                        @if (!string.IsNullOrWhiteSpace(_editingTestErrorMessage))
+                                                                        {
+                                                                            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-2">@_editingTestErrorMessage</MudAlert>
+                                                                        }
+                                                                        <MudGrid>
+                                                                            <MudItem xs="12">
+                                                                                <MudTextField @bind-Value="_editingTestConsigne" Label="Consigne" Variant="Variant.Outlined" FullWidth="true" />
+                                                                            </MudItem>
+                                                                            <MudItem xs="12" Class="d-flex gap-2">
+                                                                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSavingTestEdit" OnClick="@(() => SaveTestAsync(test))">Enregistrer</MudButton>
+                                                                                <MudButton Variant="Variant.Text" OnClick="CancelTestEdit">Annuler</MudButton>
+                                                                            </MudItem>
+                                                                        </MudGrid>
+                                                                    </MudPaper>
+                                                                }
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+
+                                                @if (_activeTestModuleId == module.Id)
+                                                {
+                                                    <MudPaper Class="module-form mt-3 pa-4" Elevation="0">
+                                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Nouveau test</MudText>
+
+                                                        @if (!string.IsNullOrWhiteSpace(_testErrorMessage))
+                                                        {
+                                                            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_testErrorMessage</MudAlert>
+                                                        }
+
+                                                        <MudGrid>
+                                                            <MudItem xs="12">
+                                                                <MudTextField @bind-Value="_testConsigne" Label="Consigne" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+                                                            </MudItem>
+                                                            <MudItem xs="12">
+                                                                <div class="test-upload-box">
+                                                                    <label class="test-upload-label" for="@($"test-file-{module.Id}")">Importer un fichier de consigne</label>
+                                                                    <InputFile id="@($"test-file-{module.Id}")" OnChange="OnTestFileSelected" class="test-upload-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar" />
+                                                                    <div class="test-upload-help">
+                                                                        @if (string.IsNullOrWhiteSpace(_selectedTestFileName))
+                                                                        {
+                                                                            <span>Aucun fichier sélectionné.</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span>Fichier sélectionné : @_selectedTestFileName</span>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </MudItem>
+                                                            <MudItem xs="12" Class="d-flex gap-2">
+                                                                <MudButton Variant="Variant.Filled" Color="Color.Info" Disabled="_isSavingTest" OnClick="@(() => CreateTestAsync(module))">
+                                                                    @(_isSavingTest ? "Création..." : "Créer le test")
+                                                                </MudButton>
+                                                                <MudButton Variant="Variant.Text" OnClick="CancelTestCreation">Annuler</MudButton>
+                                                            </MudItem>
+                                                        </MudGrid>
+                                                    </MudPaper>
+                                                }
+                                            </MudTabPanel>
+                                        </MudTabs>
+                                    </MudPaper>
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                </MudTabPanel>
+            </MudTabs>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private FormationDTO? _formation;
+    private List<InscriptionDTO> _inscriptions = [];
+    private List<ParticipationQuizDTO> _participations = [];
+    private List<RenduTestDTO> _rendus = [];
+    private List<AvisDTO> _avis = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string? _moduleErrorMessage;
+    private string _newModuleTitle = string.Empty;
+    private int _newModuleOrder = 1;
+    private bool _isSavingModule;
+    private int? _editingModuleId;
+    private string _editingModuleTitle = string.Empty;
+    private int _editingModuleOrder = 1;
+    private string? _editingModuleErrorMessage;
+    private bool _isSavingModuleEdit;
+    private int? _activeQuizModuleId;
+    private int _quizDeadline = 60;
+    private int _quizMinimumScore = 10;
+    private string? _quizErrorMessage;
+    private bool _isSavingQuiz;
+    private int? _editingQuizId;
+    private int _editingQuizDeadline = 60;
+    private int _editingQuizMinimumScore = 10;
+    private string? _editingQuizErrorMessage;
+    private bool _isSavingQuizEdit;
+    private int? _activeQuestionQuizId;
+    private string _questionEnonce = string.Empty;
+    private float _questionBareme = 1;
+    private TypeQuestion _questionCorrectAnswer = TypeQuestion.VRAI;
+    private string? _questionErrorMessage;
+    private bool _isSavingQuestion;
+    private int? _editingQuestionId;
+    private string _editingQuestionEnonce = string.Empty;
+    private float _editingQuestionBareme = 1;
+    private TypeQuestion _editingQuestionCorrectAnswer = TypeQuestion.VRAI;
+    private string? _editingQuestionErrorMessage;
+    private bool _isSavingQuestionEdit;
+    private int? _activeTestModuleId;
+    private string _testConsigne = string.Empty;
+    private IBrowserFile? _selectedTestFile;
+    private string? _selectedTestFileName;
+    private string? _testErrorMessage;
+    private bool _isSavingTest;
+    private int? _editingTestId;
+    private string _editingTestConsigne = string.Empty;
+    private string? _editingTestErrorMessage;
+    private bool _isSavingTestEdit;
+    private int? _activeVideoModuleId;
+    private string _videoTitle = string.Empty;
+    private int _videoOrder = 1;
+    private int _videoDuration;
+    private IBrowserFile? _selectedVideoFile;
+    private string? _selectedVideoFileName;
+    private string? _videoErrorMessage;
+    private bool _isSavingVideo;
+    private int? _editingVideoId;
+    private string _editingVideoTitle = string.Empty;
+    private int _editingVideoOrder = 1;
+    private int _editingVideoDuration;
+    private string? _editingVideoErrorMessage;
+    private bool _isSavingVideoEdit;
+    private int? _activeDocumentModuleId;
+    private string _documentTitle = string.Empty;
+    private int _documentOrder = 1;
+    private IBrowserFile? _selectedDocumentFile;
+    private string? _selectedDocumentFileName;
+    private string? _documentErrorMessage;
+    private bool _isSavingDocument;
+    private int? _editingDocumentId;
+    private string _editingDocumentTitle = string.Empty;
+    private int _editingDocumentOrder = 1;
+    private string? _editingDocumentErrorMessage;
+    private bool _isSavingDocumentEdit;
+    private const long MaxFileSize = 25 * 1024 * 1024;
+    private const long MaxVideoFileSize = 100 * 1024 * 1024;
+    private const int AvisMaxNote = 6;
+
+    private List<ModuleDTO> Modules => _formation?.Modules?.OrderBy(m => m.Ordre).ToList() ?? [];
+    private int TotalQuizzes => Modules.Sum(m => m.Quizzes?.Count ?? 0);
+    private int TotalQuestions => Modules.Sum(m => m.Quizzes?.Sum(q => q.Questions?.Count ?? 0) ?? 0);
+    private int TotalTests => Modules.Sum(m => m.Tests?.Count ?? 0);
+    private int TotalVideos => Modules.Sum(m => m.Videos?.Count ?? 0);
+    private int TotalDocuments => Modules.Sum(m => m.Documents?.Count ?? 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _formation = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{Id}");
+            _inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>($"api/inscriptions/formation/{Id}") ?? [];
+            _avis = await Http.GetFromJsonAsync<List<AvisDTO>>($"api/avis/formation/{Id}") ?? [];
+            var inscriptionIds = _inscriptions.Select(i => i.Id).ToList();
+
+            if (inscriptionIds.Count > 0)
+            {
+                var participationTasks = inscriptionIds
+                    .Select(inscriptionId => Http.GetFromJsonAsync<List<ParticipationQuizDTO>>($"api/participationquizzes/inscription/{inscriptionId}"));
+                var renduTasks = inscriptionIds
+                    .Select(inscriptionId => Http.GetFromJsonAsync<List<RenduTestDTO>>($"api/rendutests/inscription/{inscriptionId}"));
+
+                var participationsByInscription = await Task.WhenAll(participationTasks);
+                var rendusByInscription = await Task.WhenAll(renduTasks);
+
+                _participations = participationsByInscription.SelectMany(list => list ?? []).ToList();
+                _rendus = rendusByInscription.SelectMany(list => list ?? []).ToList();
+            }
+            else
+            {
+                _participations = [];
+                _rendus = [];
+            }
+
+            await SyncAutomaticProgressAsync();
+
+            SetNextModuleOrder();
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger les détails de la formation.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OpenEditDialogAsync()
+    {
+        var parameters = new DialogParameters<FormateurFormationEditorDialog> { { x => x.FormationId, Id } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<FormateurFormationEditorDialog>("Modifier Formation", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private void SetNextModuleOrder()
+    {
+        if (_formation?.Modules is null || _formation.Modules.Count == 0)
+        {
+            _newModuleOrder = 1;
+            return;
+        }
+
+        _newModuleOrder = _formation.Modules.Max(m => m.Ordre) + 1;
+    }
+
+    private static int GetNextVideoOrder(ModuleDTO module)
+        => module.Videos is null || module.Videos.Count == 0 ? 1 : module.Videos.Max(video => video.Ordre) + 1;
+
+    private static int GetNextDocumentOrder(ModuleDTO module)
+        => module.Documents is null || module.Documents.Count == 0 ? 1 : module.Documents.Max(document => document.Ordre) + 1;
+
+    private async Task CreateModuleAsync()
+    {
+        _moduleErrorMessage = null;
+
+        if (_formation is null)
+        {
+            _moduleErrorMessage = "Formation introuvable.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_newModuleTitle))
+        {
+            _moduleErrorMessage = "Le titre du module est obligatoire.";
+            return;
+        }
+
+        if (_newModuleOrder <= 0)
+        {
+            SetNextModuleOrder();
+        }
+
+        _isSavingModule = true;
+
+        try
+        {
+            var dto = new ModuleDTO
+            {
+                Titre = _newModuleTitle.Trim(),
+                Ordre = _newModuleOrder,
+                FormationId = _formation.Id
+            };
+
+            var response = await Http.PostAsJsonAsync("api/modules", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                _moduleErrorMessage = await ReadErrorAsync(response, "Impossible de créer le module.");
+                return;
+            }
+
+            var created = await response.Content.ReadFromJsonAsync<ModuleDTO>();
+            if (created is null)
+            {
+                _moduleErrorMessage = "Le module n'a pas pu être chargé.";
+                return;
+            }
+
+            created.Quizzes ??= new List<QuizDTO>();
+            created.Tests ??= new List<TestDTO>();
+            created.Videos ??= new List<VideoDTO>();
+            created.Documents ??= new List<DocumentDTO>();
+
+            _formation.Modules ??= new List<ModuleDTO>();
+            _formation.Modules.Add(created);
+            _newModuleTitle = string.Empty;
+            SetNextModuleOrder();
+        }
+        catch
+        {
+            _moduleErrorMessage = "Erreur lors de la création du module.";
+        }
+        finally
+        {
+            _isSavingModule = false;
+        }
+    }
+
+    private async Task DeleteInscriptionAsync(InscriptionDTO inscription)
+    {
+        if (!await ConfirmDeleteAsync("cet étudiant inscrit"))
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync($"api/inscriptions/{inscription.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            _inscriptions.Remove(inscription);
+        }
+    }
+
+    private void StartModuleEdit(ModuleDTO module)
+    {
+        _editingModuleId = module.Id;
+        _editingModuleTitle = module.Titre;
+        _editingModuleOrder = module.Ordre;
+        _editingModuleErrorMessage = null;
+    }
+
+    private void CancelModuleEdit()
+    {
+        _editingModuleId = null;
+        _editingModuleErrorMessage = null;
+    }
+
+    private async Task SaveModuleAsync(ModuleDTO module)
+    {
+        _editingModuleErrorMessage = null;
+        _isSavingModuleEdit = true;
+
+        try
+        {
+            var dto = new ModuleDTO
+            {
+                Id = module.Id,
+                Titre = _editingModuleTitle.Trim(),
+                Ordre = _editingModuleOrder,
+                FormationId = module.FormationId
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/modules/{module.Id}", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                _editingModuleErrorMessage = await ReadErrorAsync(response, "Impossible de modifier le module.");
+                return;
+            }
+
+            module.Titre = dto.Titre;
+            module.Ordre = dto.Ordre;
+            CancelModuleEdit();
+        }
+        finally
+        {
+            _isSavingModuleEdit = false;
+        }
+    }
+
+    private async Task DeleteModuleAsync(ModuleDTO module)
+    {
+        if (!await ConfirmDeleteAsync("ce module et tout son contenu"))
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync($"api/modules/{module.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            _formation?.Modules?.Remove(module);
+        }
+    }
+
+    private void StartQuizCreation(ModuleDTO module)
+    {
+        _activeQuizModuleId = module.Id;
+        _activeTestModuleId = null;
+        _activeQuestionQuizId = null;
+        _activeVideoModuleId = null;
+        _activeDocumentModuleId = null;
+        _quizErrorMessage = null;
+        _quizDeadline = 60;
+        _quizMinimumScore = 10;
+    }
+
+    private void CancelQuizCreation()
+    {
+        _activeQuizModuleId = null;
+        _quizErrorMessage = null;
+    }
+
+    private void StartQuizEdit(QuizDTO quiz)
+    {
+        _editingQuizId = quiz.Id;
+        _editingQuizDeadline = quiz.DLimite;
+        _editingQuizMinimumScore = quiz.ScoreMinimum;
+        _editingQuizErrorMessage = null;
+    }
+
+    private void CancelQuizEdit()
+    {
+        _editingQuizId = null;
+        _editingQuizErrorMessage = null;
+    }
+
+    private async Task SaveQuizAsync(QuizDTO quiz)
+    {
+        _editingQuizErrorMessage = null;
+        _isSavingQuizEdit = true;
+
+        try
+        {
+            var dto = new QuizDTO
+            {
+                Id = quiz.Id,
+                DLimite = _editingQuizDeadline,
+                ScoreMinimum = _editingQuizMinimumScore,
+                ModuleId = quiz.ModuleId
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/quizzes/{quiz.Id}", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                _editingQuizErrorMessage = await ReadErrorAsync(response, "Impossible de modifier le quiz.");
+                return;
+            }
+
+            quiz.DLimite = dto.DLimite;
+            quiz.ScoreMinimum = dto.ScoreMinimum;
+            CancelQuizEdit();
+        }
+        finally
+        {
+            _isSavingQuizEdit = false;
+        }
+    }
+
+    private async Task DeleteQuizAsync(ModuleDTO module, QuizDTO quiz)
+    {
+        if (!await ConfirmDeleteAsync("ce quiz"))
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync($"api/quizzes/{quiz.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            module.Quizzes?.Remove(quiz);
+        }
+    }
+
+    private async Task CreateQuizAsync(ModuleDTO module)
+    {
+        _quizErrorMessage = null;
+
+        if (_quizDeadline <= 0)
+        {
+            _quizErrorMessage = "La durée limite doit être supérieure à zéro.";
+            return;
+        }
+
+        if (_quizMinimumScore < 0)
+        {
+            _quizErrorMessage = "Le score minimum est invalide.";
+            return;
+        }
+
+        _isSavingQuiz = true;
+
+        try
+        {
+            var dto = new QuizDTO
+            {
+                DLimite = _quizDeadline,
+                ScoreMinimum = _quizMinimumScore,
+                ModuleId = module.Id
+            };
+
+            var response = await Http.PostAsJsonAsync("api/quizzes", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                _quizErrorMessage = await ReadErrorAsync(response, "Impossible de créer le quiz.");
+                return;
+            }
+
+            var created = await response.Content.ReadFromJsonAsync<QuizDTO>();
+            if (created is null)
+            {
+                _quizErrorMessage = "Le quiz n'a pas pu être chargé.";
+                return;
+            }
+
+            created.Questions ??= new List<QuestionDTO>();
+            module.Quizzes ??= new List<QuizDTO>();
+            module.Quizzes.Add(created);
+            _activeQuizModuleId = null;
+        }
+        catch
+        {
+            _quizErrorMessage = "Erreur lors de la création du quiz.";
+        }
+        finally
+        {
+            _isSavingQuiz = false;
+        }
+    }
+
+    private void StartQuestionCreation(QuizDTO quiz)
+    {
+        _activeQuestionQuizId = quiz.Id;
+        _questionErrorMessage = null;
+        _questionEnonce = string.Empty;
+        _questionBareme = 1;
+        _questionCorrectAnswer = TypeQuestion.VRAI;
+    }
+
+    private void CancelQuestionCreation()
+    {
+        _activeQuestionQuizId = null;
+        _questionErrorMessage = null;
+    }
+
+    private void StartQuestionEdit(QuestionDTO question)
+    {
+        _editingQuestionId = question.Id;
+        _editingQuestionEnonce = question.Enonce;
+        _editingQuestionBareme = question.Bareme;
+        _editingQuestionCorrectAnswer = question.Type;
+        _editingQuestionErrorMessage = null;
+    }
+
+    private void CancelQuestionEdit()
+    {
+        _editingQuestionId = null;
+        _editingQuestionErrorMessage = null;
+    }
+
+    private async Task SaveQuestionAsync(QuestionDTO question)
+    {
+        _editingQuestionErrorMessage = null;
+        _isSavingQuestionEdit = true;
+
+        try
+        {
+            var dto = new QuestionDTO
+            {
+                Id = question.Id,
+                Enonce = _editingQuestionEnonce.Trim(),
+                Bareme = _editingQuestionBareme,
+                QuizId = question.QuizId,
+                Type = _editingQuestionCorrectAnswer
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/questions/{question.Id}", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                _editingQuestionErrorMessage = await ReadErrorAsync(response, "Impossible de modifier la question.");
+                return;
+            }
+
+            if (question.OptionsReponses is not null)
+            {
+                foreach (var option in question.OptionsReponses)
+                {
+                    option.EstCorrecte = option.Texte.Equals(_editingQuestionCorrectAnswer == TypeQuestion.VRAI ? "Vrai" : "Faux", StringComparison.OrdinalIgnoreCase);
+                    await Http.PutAsJsonAsync($"api/optionreponse/{option.Id}", option);
+                }
+            }
+
+            question.Enonce = dto.Enonce;
+            question.Bareme = dto.Bareme;
+            question.Type = dto.Type;
+            CancelQuestionEdit();
+        }
+        finally
+        {
+            _isSavingQuestionEdit = false;
+        }
+    }
+
+    private async Task DeleteQuestionAsync(QuizDTO quiz, QuestionDTO question)
+    {
+        if (!await ConfirmDeleteAsync("cette question"))
+        {
+            return;
+        }
+
+        if (question.OptionsReponses is not null)
+        {
+            foreach (var option in question.OptionsReponses.ToList())
+            {
+                await Http.DeleteAsync($"api/optionreponse/{option.Id}");
+            }
+        }
+
+        var response = await Http.DeleteAsync($"api/questions/{question.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            quiz.Questions?.Remove(question);
+        }
+    }
+
+    private async Task CreateQuestionAsync(QuizDTO quiz)
+    {
+        _questionErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_questionEnonce))
+        {
+            _questionErrorMessage = "L'énoncé est obligatoire.";
+            return;
+        }
+
+        if (_questionBareme < 0)
+        {
+            _questionErrorMessage = "Le barème est invalide.";
+            return;
+        }
+
+        _isSavingQuestion = true;
+
+        try
+        {
+            var questionDto = new QuestionDTO
+            {
+                Enonce = _questionEnonce.Trim(),
+                Bareme = _questionBareme,
+                QuizId = quiz.Id,
+                Type = _questionCorrectAnswer
+            };
+
+            var questionResponse = await Http.PostAsJsonAsync("api/questions", questionDto);
+            if (!questionResponse.IsSuccessStatusCode)
+            {
+                _questionErrorMessage = await ReadErrorAsync(questionResponse, "Impossible de créer la question.");
+                return;
+            }
+
+            var createdQuestion = await questionResponse.Content.ReadFromJsonAsync<QuestionDTO>();
+            if (createdQuestion is null)
+            {
+                _questionErrorMessage = "La question n'a pas pu être chargée.";
+                return;
+            }
+
+            var options = new[]
+            {
+                new OptionResponseDTO { Texte = "Vrai", EstCorrecte = _questionCorrectAnswer == TypeQuestion.VRAI, QuestionId = createdQuestion.Id },
+                new OptionResponseDTO { Texte = "Faux", EstCorrecte = _questionCorrectAnswer == TypeQuestion.FAUX, QuestionId = createdQuestion.Id }
+            };
+
+            var createdOptions = new List<OptionResponseDTO>();
+            foreach (var option in options)
+            {
+                var optionResponse = await Http.PostAsJsonAsync("api/optionreponse", option);
+                if (!optionResponse.IsSuccessStatusCode)
+                {
+                    _questionErrorMessage = await ReadErrorAsync(optionResponse, "La question a été créée, mais les réponses n'ont pas pu être enregistrées.");
+                    return;
+                }
+
+                var createdOption = await optionResponse.Content.ReadFromJsonAsync<OptionResponseDTO>();
+                if (createdOption is not null)
+                {
+                    createdOptions.Add(createdOption);
+                }
+            }
+
+            createdQuestion.OptionsReponses = createdOptions;
+            quiz.Questions ??= new List<QuestionDTO>();
+            quiz.Questions.Add(createdQuestion);
+            _activeQuestionQuizId = null;
+        }
+        catch
+        {
+            _questionErrorMessage = "Erreur lors de la création de la question.";
+        }
+        finally
+        {
+            _isSavingQuestion = false;
+        }
+    }
+
+    private void StartTestCreation(ModuleDTO module)
+    {
+        _activeTestModuleId = module.Id;
+        _activeQuizModuleId = null;
+        _activeQuestionQuizId = null;
+        _activeVideoModuleId = null;
+        _activeDocumentModuleId = null;
+        _testErrorMessage = null;
+        _testConsigne = string.Empty;
+        _selectedTestFile = null;
+        _selectedTestFileName = null;
+    }
+
+    private void CancelTestCreation()
+    {
+        _activeTestModuleId = null;
+        _testErrorMessage = null;
+    }
+
+    private void StartTestEdit(TestDTO test)
+    {
+        _editingTestId = test.Id;
+        _editingTestConsigne = test.Consigne;
+        _editingTestErrorMessage = null;
+    }
+
+    private void CancelTestEdit()
+    {
+        _editingTestId = null;
+        _editingTestErrorMessage = null;
+    }
+
+    private async Task SaveTestAsync(TestDTO test)
+    {
+        _editingTestErrorMessage = null;
+        _isSavingTestEdit = true;
+
+        try
+        {
+            var dto = new TestDTO
+            {
+                Id = test.Id,
+                Consigne = _editingTestConsigne.Trim(),
+                FichierConsigneUrl = test.FichierConsigneUrl,
+                ModuleId = test.ModuleId
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/tests/{test.Id}", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                _editingTestErrorMessage = await ReadErrorAsync(response, "Impossible de modifier le test.");
+                return;
+            }
+
+            test.Consigne = dto.Consigne;
+            CancelTestEdit();
+        }
+        finally
+        {
+            _isSavingTestEdit = false;
+        }
+    }
+
+    private async Task DeleteTestAsync(ModuleDTO module, TestDTO test)
+    {
+        if (!await ConfirmDeleteAsync("ce test"))
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync($"api/tests/{test.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            module.Tests?.Remove(test);
+        }
+    }
+
+    private void OnTestFileSelected(InputFileChangeEventArgs eventArgs)
+    {
+        _selectedTestFile = eventArgs.File;
+        _selectedTestFileName = _selectedTestFile?.Name;
+    }
+
+    private async Task CreateTestAsync(ModuleDTO module)
+    {
+        _testErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_testConsigne))
+        {
+            _testErrorMessage = "La consigne est obligatoire.";
+            return;
+        }
+
+        _isSavingTest = true;
+
+        try
+        {
+            using var formData = new MultipartFormDataContent
+            {
+                { new StringContent(_testConsigne.Trim()), "Consigne" },
+                { new StringContent(module.Id.ToString()), "ModuleId" }
+            };
+
+            if (_selectedTestFile is not null)
+            {
+                var fileStream = _selectedTestFile.OpenReadStream(MaxFileSize);
+                var streamContent = new StreamContent(fileStream);
+                if (!string.IsNullOrWhiteSpace(_selectedTestFile.ContentType))
+                {
+                    streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_selectedTestFile.ContentType);
+                }
+
+                formData.Add(streamContent, "Fichier", _selectedTestFile.Name);
+            }
+
+            var response = await Http.PostAsync("api/tests/upload", formData);
+            if (!response.IsSuccessStatusCode)
+            {
+                _testErrorMessage = await ReadErrorAsync(response, "Impossible de créer le test.");
+                return;
+            }
+
+            var created = await response.Content.ReadFromJsonAsync<TestDTO>();
+            if (created is null)
+            {
+                _testErrorMessage = "Le test n'a pas pu être chargé.";
+                return;
+            }
+
+            module.Tests ??= new List<TestDTO>();
+            module.Tests.Add(created);
+            _activeTestModuleId = null;
+            _selectedTestFile = null;
+            _selectedTestFileName = null;
+        }
+        catch
+        {
+            _testErrorMessage = "Erreur lors de la création du test.";
+        }
+        finally
+        {
+            _isSavingTest = false;
+        }
+    }
+
+    private void StartVideoCreation(ModuleDTO module)
+    {
+        _activeVideoModuleId = module.Id;
+        _activeQuizModuleId = null;
+        _activeQuestionQuizId = null;
+        _activeTestModuleId = null;
+        _activeDocumentModuleId = null;
+        _videoErrorMessage = null;
+        _videoTitle = string.Empty;
+        _videoDuration = 0;
+        _videoOrder = GetNextVideoOrder(module);
+        _selectedVideoFile = null;
+        _selectedVideoFileName = null;
+    }
+
+    private void CancelVideoCreation()
+    {
+        _activeVideoModuleId = null;
+        _videoErrorMessage = null;
+    }
+
+    private void StartVideoEdit(VideoDTO video)
+    {
+        _editingVideoId = video.Id;
+        _editingVideoTitle = video.Titre;
+        _editingVideoOrder = video.Ordre;
+        _editingVideoDuration = video.Duree;
+        _editingVideoErrorMessage = null;
+    }
+
+    private void CancelVideoEdit()
+    {
+        _editingVideoId = null;
+        _editingVideoErrorMessage = null;
+    }
+
+    private async Task SaveVideoAsync(VideoDTO video)
+    {
+        _editingVideoErrorMessage = null;
+        _isSavingVideoEdit = true;
+
+        try
+        {
+            var dto = new VideoDTO
+            {
+                Id = video.Id,
+                Titre = _editingVideoTitle.Trim(),
+                Ordre = _editingVideoOrder,
+                Duree = _editingVideoDuration,
+                UrlVideo = video.UrlVideo,
+                ModuleId = video.ModuleId
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/videos/{video.Id}", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                _editingVideoErrorMessage = await ReadErrorAsync(response, "Impossible de modifier la vidéo.");
+                return;
+            }
+
+            video.Titre = dto.Titre;
+            video.Ordre = dto.Ordre;
+            video.Duree = dto.Duree;
+            CancelVideoEdit();
+        }
+        finally
+        {
+            _isSavingVideoEdit = false;
+        }
+    }
+
+    private async Task DeleteVideoAsync(ModuleDTO module, VideoDTO video)
+    {
+        if (!await ConfirmDeleteAsync("cette vidéo"))
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync($"api/videos/{video.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            module.Videos?.Remove(video);
+        }
+    }
+
+    private void OnVideoFileSelected(InputFileChangeEventArgs eventArgs)
+    {
+        _selectedVideoFile = eventArgs.File;
+        _selectedVideoFileName = _selectedVideoFile?.Name;
+    }
+
+    private async Task CreateVideoAsync(ModuleDTO module)
+    {
+        _videoErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_videoTitle))
+        {
+            _videoErrorMessage = "Le titre de la vidéo est obligatoire.";
+            return;
+        }
+
+        if (_selectedVideoFile is null)
+        {
+            _videoErrorMessage = "Sélectionnez un fichier vidéo à importer.";
+            return;
+        }
+
+        _isSavingVideo = true;
+
+        try
+        {
+            using var formData = new MultipartFormDataContent
+            {
+                { new StringContent(_videoTitle.Trim()), "Titre" },
+                { new StringContent((_videoOrder <= 0 ? GetNextVideoOrder(module) : _videoOrder).ToString()), "Ordre" },
+                { new StringContent(Math.Max(0, _videoDuration).ToString()), "Duree" },
+                { new StringContent(module.Id.ToString()), "ModuleId" }
+            };
+
+            var fileStream = _selectedVideoFile.OpenReadStream(MaxVideoFileSize);
+            var streamContent = new StreamContent(fileStream);
+            if (!string.IsNullOrWhiteSpace(_selectedVideoFile.ContentType))
+            {
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_selectedVideoFile.ContentType);
+            }
+
+            formData.Add(streamContent, "Fichier", _selectedVideoFile.Name);
+
+            var response = await Http.PostAsync("api/videos/upload", formData);
+            if (!response.IsSuccessStatusCode)
+            {
+                _videoErrorMessage = await ReadErrorAsync(response, "Impossible de créer la vidéo.");
+                return;
+            }
+
+            var created = await response.Content.ReadFromJsonAsync<VideoDTO>();
+            if (created is null)
+            {
+                _videoErrorMessage = "La vidéo n'a pas pu être chargée.";
+                return;
+            }
+
+            module.Videos ??= new List<VideoDTO>();
+            module.Videos.Add(created);
+            _activeVideoModuleId = null;
+            _selectedVideoFile = null;
+            _selectedVideoFileName = null;
+        }
+        catch
+        {
+            _videoErrorMessage = "Erreur lors de la création de la vidéo.";
+        }
+        finally
+        {
+            _isSavingVideo = false;
+        }
+    }
+
+    private void StartDocumentCreation(ModuleDTO module)
+    {
+        _activeDocumentModuleId = module.Id;
+        _activeQuizModuleId = null;
+        _activeQuestionQuizId = null;
+        _activeTestModuleId = null;
+        _activeVideoModuleId = null;
+        _documentErrorMessage = null;
+        _documentTitle = string.Empty;
+        _documentOrder = GetNextDocumentOrder(module);
+        _selectedDocumentFile = null;
+        _selectedDocumentFileName = null;
+    }
+
+    private void CancelDocumentCreation()
+    {
+        _activeDocumentModuleId = null;
+        _documentErrorMessage = null;
+    }
+
+    private void StartDocumentEdit(DocumentDTO document)
+    {
+        _editingDocumentId = document.Id;
+        _editingDocumentTitle = document.Titre;
+        _editingDocumentOrder = document.Ordre;
+        _editingDocumentErrorMessage = null;
+    }
+
+    private void CancelDocumentEdit()
+    {
+        _editingDocumentId = null;
+        _editingDocumentErrorMessage = null;
+    }
+
+    private async Task SaveDocumentAsync(DocumentDTO document)
+    {
+        _editingDocumentErrorMessage = null;
+        _isSavingDocumentEdit = true;
+
+        try
+        {
+            var dto = new DocumentDTO
+            {
+                Id = document.Id,
+                Titre = _editingDocumentTitle.Trim(),
+                Ordre = _editingDocumentOrder,
+                UrlFichier = document.UrlFichier,
+                Format = document.Format,
+                ModuleId = document.ModuleId
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/documents/{document.Id}", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                _editingDocumentErrorMessage = await ReadErrorAsync(response, "Impossible de modifier le document.");
+                return;
+            }
+
+            document.Titre = dto.Titre;
+            document.Ordre = dto.Ordre;
+            CancelDocumentEdit();
+        }
+        finally
+        {
+            _isSavingDocumentEdit = false;
+        }
+    }
+
+    private async Task DeleteDocumentAsync(ModuleDTO module, DocumentDTO document)
+    {
+        if (!await ConfirmDeleteAsync("ce document"))
+        {
+            return;
+        }
+
+        var response = await Http.DeleteAsync($"api/documents/{document.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            module.Documents?.Remove(document);
+        }
+    }
+
+    private void OnDocumentFileSelected(InputFileChangeEventArgs eventArgs)
+    {
+        _selectedDocumentFile = eventArgs.File;
+        _selectedDocumentFileName = _selectedDocumentFile?.Name;
+    }
+
+    private async Task CreateDocumentAsync(ModuleDTO module)
+    {
+        _documentErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_documentTitle))
+        {
+            _documentErrorMessage = "Le titre du document est obligatoire.";
+            return;
+        }
+
+        if (_selectedDocumentFile is null)
+        {
+            _documentErrorMessage = "Sélectionnez un fichier à importer.";
+            return;
+        }
+
+        _isSavingDocument = true;
+
+        try
+        {
+            using var formData = new MultipartFormDataContent
+            {
+                { new StringContent(_documentTitle.Trim()), "Titre" },
+                { new StringContent((_documentOrder <= 0 ? GetNextDocumentOrder(module) : _documentOrder).ToString()), "Ordre" },
+                { new StringContent(module.Id.ToString()), "ModuleId" }
+            };
+
+            var fileStream = _selectedDocumentFile.OpenReadStream(MaxFileSize);
+            var streamContent = new StreamContent(fileStream);
+            if (!string.IsNullOrWhiteSpace(_selectedDocumentFile.ContentType))
+            {
+                streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_selectedDocumentFile.ContentType);
+            }
+
+            formData.Add(streamContent, "Fichier", _selectedDocumentFile.Name);
+
+            var response = await Http.PostAsync("api/documents/upload", formData);
+            if (!response.IsSuccessStatusCode)
+            {
+                _documentErrorMessage = await ReadErrorAsync(response, "Impossible de créer le document.");
+                return;
+            }
+
+            var created = await response.Content.ReadFromJsonAsync<DocumentDTO>();
+            if (created is null)
+            {
+                _documentErrorMessage = "Le document n'a pas pu être chargé.";
+                return;
+            }
+
+            module.Documents ??= new List<DocumentDTO>();
+            module.Documents.Add(created);
+            _activeDocumentModuleId = null;
+            _selectedDocumentFile = null;
+            _selectedDocumentFileName = null;
+        }
+        catch
+        {
+            _documentErrorMessage = "Erreur lors de la création du document.";
+        }
+        finally
+        {
+            _isSavingDocument = false;
+        }
+    }
+
+    private static float GetQuizMaximumScore(QuizDTO quiz)
+        => quiz.Questions?.Sum(question => question.Bareme) ?? 0;
+
+    private static int GetQuestionCount(QuizDTO quiz)
+        => quiz.Questions?.Count ?? 0;
+
+    private async Task SyncAutomaticProgressAsync()
+    {
+        foreach (var inscription in _inscriptions)
+        {
+            var automaticProgress = GetAutomaticProgress(inscription);
+            if (Math.Abs(inscription.Progression - automaticProgress) < 0.01f)
+            {
+                continue;
+            }
+
+            var dto = new InscriptionDTO
+            {
+                Id = inscription.Id,
+                DateInscription = inscription.DateInscription,
+                Progression = automaticProgress,
+                EdudiantId = inscription.EdudiantId,
+                FormationId = inscription.FormationId
+            };
+
+            var response = await Http.PutAsJsonAsync($"api/inscriptions/{inscription.Id}", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                inscription.Progression = automaticProgress;
+            }
+        }
+    }
+
+    private float GetAutomaticProgress(InscriptionDTO inscription)
+    {
+        var totalQuizzes = Modules.Sum(module => module.Quizzes?.Count ?? 0);
+        var totalTests = Modules.Sum(module => module.Tests?.Count ?? 0);
+        var totalEvaluations = totalQuizzes + totalTests;
+
+        if (totalEvaluations <= 0)
+        {
+            return 0;
+        }
+
+        var completedQuizzes = _participations
+            .Where(participation => participation.InscriptionId == inscription.Id)
+            .Select(participation => participation.QuizId)
+            .Distinct()
+            .Count();
+
+        var completedTests = _rendus
+            .Where(rendu => rendu.InscriptionId == inscription.Id)
+            .Select(rendu => rendu.TestId)
+            .Distinct()
+            .Count();
+
+        var completedEvaluations = completedQuizzes + completedTests;
+        var progress = (float)completedEvaluations / totalEvaluations * 100f;
+        return NormalizeProgress(progress);
+    }
+
+    private List<ParticipationQuizDTO> GetQuizParticipations(int inscriptionId)
+        => _participations.Where(participation => participation.InscriptionId == inscriptionId).ToList();
+
+    private List<RenduTestDTO> GetRendus(int inscriptionId)
+        => _rendus.Where(rendu => rendu.InscriptionId == inscriptionId).ToList();
+
+    private List<AvisDTO> GetAvis(int inscriptionId)
+        => _avis.Where(avis => avis.InscriptionId == inscriptionId).ToList();
+
+    private string GetStudentPanelTitle(InscriptionDTO inscription)
+    {
+        var name = GetStudentName(inscription);
+        var progress = $"{GetAutomaticProgress(inscription):0}%";
+        return $"{name} - {progress} de progression";
+    }
+
+    private static string GetQuizTitle(ParticipationQuizDTO participation)
+        => participation.Quiz is null ? $"Quiz {participation.QuizId}" : $"Quiz {participation.QuizId} - min {participation.Quiz.ScoreMinimum}";
+
+    private static Color GetQuizScoreColor(ParticipationQuizDTO participation)
+    {
+        var minScore = participation.Quiz?.ScoreMinimum ?? 0;
+        return participation.Score >= minScore ? Color.Success : Color.Warning;
+    }
+
+    private static string FormatQuizScore(ParticipationQuizDTO participation, float maxScore)
+        => maxScore > 0 ? $"{participation.Score:0.##} / {maxScore:0.##}" : $"{participation.Score:0.##}";
+
+    private static Color GetRenduNoteColor(float? note)
+    {
+        if (!note.HasValue)
+        {
+            return Color.Default;
+        }
+
+        return note.Value >= 10 ? Color.Success : Color.Warning;
+    }
+
+    private static string FormatRenduNote(float? note)
+        => note.HasValue ? $"Note {note.Value:0.##}" : "Non noté";
+
+    private async Task<bool> ConfirmDeleteAsync(string targetLabel)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Confirmation",
+            $"Voulez-vous vraiment supprimer {targetLabel} ?",
+            yesText: "Supprimer",
+            cancelText: "Annuler");
+
+        return result == true;
+    }
+
+    private static string GetFileExtensionLabel(string? url, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return fallback;
+        }
+
+        try
+        {
+            var extension = Path.GetExtension(new Uri(url).AbsolutePath).TrimStart('.');
+            return string.IsNullOrWhiteSpace(extension) ? fallback : extension.ToUpperInvariant();
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    private static string GetDownloadFileName(string title, string? url)
+    {
+        var safeTitle = string.Join("-", title.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Trim();
+        if (string.IsNullOrWhiteSpace(safeTitle))
+        {
+            safeTitle = "fichier";
+        }
+
+        var extension = string.Empty;
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            try
+            {
+                extension = Path.GetExtension(new Uri(url).AbsolutePath);
+            }
+            catch
+            {
+                extension = string.Empty;
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(extension) ? safeTitle : $"{safeTitle}{extension}";
+    }
+
+    private static string GetCorrectAnswerLabel(QuestionDTO question)
+        => question.OptionsReponses?.FirstOrDefault(option => option.EstCorrecte)?.Texte
+           ?? (question.Type == TypeQuestion.FAUX ? "Faux" : "Vrai");
+
+    private static float NormalizeProgress(float progress)
+        => Math.Clamp(progress, 0, 100);
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string GetStudentName(InscriptionDTO inscription)
+    {
+        var fullName = $"{inscription.Edudiant?.FirstName} {inscription.Edudiant?.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? (inscription.Edudiant?.UserName ?? "Étudiant") : fullName;
+    }
+
+    private string GetStudentNameFromInscriptionId(int inscriptionId)
+    {
+        var inscription = _inscriptions.FirstOrDefault(i => i.Id == inscriptionId);
+        return inscription is null ? "Étudiant" : GetStudentName(inscription);
+    }
+
+    private double GetAverageAvisNote()
+        => _avis.Count == 0 ? 0 : _avis.Average(avis => avis.Note);
+
+    private string GetAverageAvisLabel()
+        => _avis.Count == 0 ? "-" : $"{GetAverageAvisNote():0.0}/{AvisMaxNote}";
+
+    private string GetLatestAvisSummary()
+    {
+        var latest = _avis.OrderByDescending(avis => avis.Date).FirstOrDefault();
+        if (latest is null)
+        {
+            return "Aucun avis récent";
+        }
+
+        return $"{GetStudentNameFromInscriptionId(latest.InscriptionId)} - {latest.Note}/{AvisMaxNote}";
+    }
+
+    private static string GetAvisStars(int note)
+    {
+        var normalized = Math.Clamp(note, 0, AvisMaxNote);
+        return new string('★', normalized) + new string('☆', AvisMaxNote - normalized);
+    }
+
+    private static async Task<string> ReadErrorAsync(HttpResponseMessage response, string fallback)
+    {
+        var details = await response.Content.ReadAsStringAsync();
+        return string.IsNullOrWhiteSpace(details) ? fallback : details;
+    }
+}

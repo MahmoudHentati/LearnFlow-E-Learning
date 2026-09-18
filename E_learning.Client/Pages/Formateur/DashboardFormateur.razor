@@ -1,0 +1,294 @@
+﻿@page "/formateur-dashboard"
+@attribute [Authorize(Roles = "Instructor")]
+@using E_learning.Models.Helpers
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<PageTitle>Dashboard Formateur - EduLearn</PageTitle>
+
+<div class="dashboard-page">
+    <div class="dashboard-header">
+        <div>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.School" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700;">Tableau de bord</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Bienvenue sur votre espace formateur. Gérez vos cours et suivez vos étudiants.</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Large" OnClick="OpenCreateDialog">
+            Créer une formation
+        </MudButton>
+    </div>
+
+    <div class="stats-grid">
+        <MudPaper Class="stat-card p-4">
+            <div class="stat-icon-bg primary">
+                <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Color="Color.Primary" />
+            </div>
+            <div class="stat-content">
+                <MudText Typo="Typo.h5">@_formationCount</MudText>
+                <MudText Typo="Typo.body2">Formations actives</MudText>
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="stat-card p-4">
+            <div class="stat-icon-bg success">
+                <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Success" />
+            </div>
+            <div class="stat-content">
+                <MudText Typo="Typo.h5">@_studentCount</MudText>
+                <MudText Typo="Typo.body2">Étudiants inscrits</MudText>
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="stat-card p-4">
+            <div class="stat-icon-bg info">
+                <MudIcon Icon="@Icons.Material.Filled.Quiz" Color="Color.Info" />
+            </div>
+            <div class="stat-content">
+                <MudText Typo="Typo.h5">@_testCount</MudText>
+                <MudText Typo="Typo.body2">Tests créés</MudText>
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="stat-card p-4">
+            <div class="stat-icon-bg warning">
+                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" />
+            </div>
+            <div class="stat-content">
+                <MudText Typo="Typo.h5">@GetAverageNoteLabel()</MudText>
+                <MudText Typo="Typo.body2">Note moyenne</MudText>
+            </div>
+        </MudPaper>
+    </div>
+
+    <div class="dashboard-content-grid">
+        <MudPaper Class="p-4 dashboard-section">
+            <div class="section-header">
+                <MudText Typo="Typo.h6">Formations récentes</MudText>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/formateur-mes-formations">Voir tout</MudButton>
+            </div>
+            @if (_isLoading)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+            }
+            else if (!_recentFormations.Any())
+            {
+                <MudAlert Severity="Severity.Info">Vous n'avez pas encore créé de formation.</MudAlert>
+            }
+            else
+            {
+                <MudList T="string">
+                    @foreach (var formation in _recentFormations)
+                    {
+                        <MudListItem OnClick="@(() => NavigationManager.NavigateTo($"/formateur/formations/{formation.Id}"))">
+                            <div class="list-item-content">
+                                <MudIcon Icon="@Icons.Material.Filled.Book" Class="mr-3" />
+                                <div>
+                                    <MudText Typo="Typo.body1">@formation.Titre</MudText>
+                                    <MudText Typo="Typo.caption">@formation.DateCreation?.ToString("dd/MM/yyyy")</MudText>
+                                </div>
+                                <MudSpacer />
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">@FormationStatusHelper.GetDisplayLabel(formation.Statut)</MudChip>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            }
+        </MudPaper>
+
+        <MudPaper Class="p-4 dashboard-section">
+            <div class="section-header">
+                <MudText Typo="Typo.h6">Actions rapides</MudText>
+            </div>
+            <div class="quick-actions">
+                <MudButton Variant="Variant.Outlined" FullWidth="true" Class="mb-3 justify-start" StartIcon="@Icons.Material.Filled.Quiz" Href="/formateur-mes-tests">
+                    Gérer mes tests
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" FullWidth="true" Class="mb-3 justify-start" StartIcon="@Icons.Material.Filled.Assessment" Href="/formateur-mes-evaluations">
+                    Voir les Evaluations
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" FullWidth="true" Class="mb-3 justify-start" StartIcon="@Icons.Material.Filled.List" Href="/formateur-mes-formations">
+                    Mes formations
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" FullWidth="true" Class="mb-3 justify-start" StartIcon="@Icons.Material.Filled.Settings">
+                    Paramètres profil
+                </MudButton>
+            </div>
+        </MudPaper>
+    </div>
+</div>
+
+<style>
+    .dashboard-page {
+        padding: 30px;
+        max-width: 1400px;
+        margin: 0 auto;
+        color: var(--app-text, #eef2ff);
+        min-height: calc(100vh - 64px);
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+    }
+
+    .dashboard-header :deep(.mud-typography) {
+        color: inherit;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border-radius: 12px;
+        transition: transform 0.3s ease;
+        border: 1px solid var(--layout-border, rgba(255,255,255,0.1));
+        background: var(--layout-surface-strong, rgba(255,255,255,0.08));
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px var(--layout-shadow, rgba(9, 14, 36, 0.2));
+    }
+
+    .stat-icon-bg {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .stat-icon-bg.primary { background-color: rgba(89, 74, 225, 0.1); }
+    .stat-icon-bg.success { background-color: rgba(0, 200, 83, 0.1); }
+    .stat-icon-bg.info { background-color: rgba(33, 150, 243, 0.1); }
+    .stat-icon-bg.warning { background-color: rgba(255, 152, 0, 0.1); }
+
+    .dashboard-content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+    }
+
+    .dashboard-section {
+        border-radius: 12px;
+        border: 1px solid var(--layout-border, rgba(255,255,255,0.1));
+        background: var(--layout-surface-strong, rgba(255,255,255,0.08));
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .list-item-content {
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+
+    .dashboard-page :deep(.mud-paper),
+    .dashboard-page :deep(.mud-list),
+    .dashboard-page :deep(.mud-list-item),
+    .dashboard-page :deep(.mud-typography) {
+        color: inherit;
+    }
+
+    .quick-actions .mud-button {
+        padding: 12px 20px;
+        text-transform: none;
+        border-radius: 8px;
+    }
+
+    @@media (max-width: 960px) {
+        .dashboard-content-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+    private bool _isLoading = true;
+    private int _formationCount = 0;
+    private int _studentCount = 0;
+    private int _testCount = 0;
+    private List<RenduTestDTO> _rendus = [];
+    private List<FormationDTO> _recentFormations = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var formations = await Http.GetFromJsonAsync<List<FormationDTO>>("api/formation/me") ?? [];
+            _formationCount = formations.Count(f => FormationStatusHelper.IsActive(f.Statut));
+            _recentFormations = formations.OrderByDescending(f => f.DateCreation).Take(5).ToList();
+
+            _testCount = formations
+                .SelectMany(f => f.Modules ?? [])
+                .Sum(m => m.Tests?.Count ?? 0);
+
+            var inscriptionTasks = formations
+                .Select(f => Http.GetFromJsonAsync<List<InscriptionDTO>>($"api/inscriptions/formation/{f.Id}"))
+                .ToArray();
+
+            var inscriptionResults = await Task.WhenAll(inscriptionTasks);
+            _studentCount = inscriptionResults
+                .Where(result => result is not null)
+                .SelectMany(result => result!)
+                .Select(i => i.EdudiantId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            _rendus = await Http.GetFromJsonAsync<List<RenduTestDTO>>("api/rendutests/instructor/me") ?? [];
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<FormateurFormationEditorDialog>("Nouvelle Formation", options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await OnInitializedAsync();
+        }
+    }
+
+    private string GetAverageNoteLabel()
+    {
+        var notedRendus = _rendus.Where(rendu => rendu.Note.HasValue).ToList();
+        if (notedRendus.Count == 0)
+        {
+            return "-";
+        }
+
+        var average = notedRendus.Average(rendu => rendu.Note ?? 0);
+        return average.ToString("0.0");
+    }
+
+}

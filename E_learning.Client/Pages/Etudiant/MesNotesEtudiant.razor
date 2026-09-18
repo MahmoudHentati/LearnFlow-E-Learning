@@ -1,0 +1,306 @@
+@page "/etudiant-mes-evaluations"
+@page "/etudiant-mes-notes"
+@attribute [Authorize(Roles = "Student")]
+@inject HttpClient Http
+
+<PageTitle>Mes évaluations</PageTitle>
+
+<div class="student-work-page">
+    <div class="student-work-header">
+        <div>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700;">Mes évaluations</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary">Vue unifiée de tous vos quiz et tests, passés ou à faire</MudText>
+        </div>
+        <div class="student-work-summary">
+            <div class="summary-pill">
+                <span>@_quizItems.Count</span>
+                <small>Quiz</small>
+            </div>
+            <div class="summary-pill">
+                <span>@_quizItems.Count(item => item.Participation is not null)</span>
+                <small>Quiz passés</small>
+            </div>
+            <div class="summary-pill">
+                <span>@_testItems.Count</span>
+                <small>Tests</small>
+            </div>
+            <div class="summary-pill">
+                <span>@_testItems.Count(item => item.Rendu is not null)</span>
+                <small>Tests remis</small>
+            </div>
+        </div>
+    </div>
+
+    <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;" Class="pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" />
+                <MudText Typo="Typo.button">CRITERES DE RECHERCHE</MudText>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => _searchText = string.Empty)" Color="Color.Secondary">
+                    REINITIALISER
+                </MudButton>
+            }
+        </div>
+        <MudTextField @bind-Value="_searchText" Placeholder="Rechercher formation, module, quiz ou test..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="border-radius:4px;" />
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudPaper Elevation="0" Outlined="true" Square="false" Style="border-radius:4px;">
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            </div>
+        </MudPaper>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+    }
+    else if (FilteredFormations.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Aucune évaluation trouvée.</MudAlert>
+    }
+    else
+    {
+        <MudExpansionPanels MultiExpansion="true">
+            @foreach (var formationGroup in FilteredFormations)
+            {
+                <MudExpansionPanel Text="@formationGroup.FormationTitle">
+                    <MudExpansionPanels MultiExpansion="true" Class="mt-3">
+                        @foreach (var moduleGroup in formationGroup.Modules)
+                        {
+                            <MudExpansionPanel Text="@moduleGroup.ModuleTitle">
+                                <MudExpansionPanels MultiExpansion="true" Class="mt-2">
+                                    <MudExpansionPanel Text="@($"Quiz ({moduleGroup.Quizzes.Count})")">
+                                        @if (moduleGroup.Quizzes.Count == 0)
+                                        {
+                                            <MudAlert Severity="Severity.Info" Variant="Variant.Text">Aucun quiz dans ce module.</MudAlert>
+                                        }
+                                        else
+                                        {
+                                            <div class="student-work-list">
+                                                @foreach (var quizItem in moduleGroup.Quizzes)
+                                                {
+                                                    var maxScore = quizItem.Quiz.Questions?.Sum(question => question.Bareme) ?? 0;
+                                                    <MudPaper Class="student-work-panel" Elevation="0">
+                                                        <div class="student-work-card__head">
+                                                            <div>
+                                                                <MudText Typo="Typo.subtitle1">@($"Quiz #{quizItem.Quiz.Id}")</MudText>
+                                                                <MudText Typo="Typo.body2">Score minimum: @quizItem.Quiz.ScoreMinimum</MudText>
+                                                            </div>
+                                                            <MudChip T="string" Variant="Variant.Filled" Color="@(quizItem.Participation is null ? Color.Warning : GetQuizColor(quizItem))">
+                                                                @(quizItem.Participation is null ? "Non passé" : $"{quizItem.Participation.Score} / {maxScore}")
+                                                            </MudChip>
+                                                        </div>
+                                                        <div class="student-work-meta">
+                                                            <span>Questions: @(quizItem.Quiz.Questions?.Count ?? 0)</span>
+                                                            <span>Durée limite: @quizItem.Quiz.DLimite min</span>
+                                                            <span>@(quizItem.Participation is null ? "À faire" : $"Passé le {quizItem.Participation.DatePassage?.ToString("yyyy-MM-dd HH:mm") ?? "-"}")</span>
+                                                        </div>
+                                                        <div class="student-work-actions">
+                                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="@($"/etudiant/formations/{quizItem.FormationId}")">
+                                                                Ouvrir la formation
+                                                            </MudButton>
+                                                        </div>
+                                                    </MudPaper>
+                                                }
+                                            </div>
+                                        }
+                                    </MudExpansionPanel>
+
+                                    <MudExpansionPanel Text="@($"Tests ({moduleGroup.Tests.Count})")">
+                                        @if (moduleGroup.Tests.Count == 0)
+                                        {
+                                            <MudAlert Severity="Severity.Info" Variant="Variant.Text">Aucun test dans ce module.</MudAlert>
+                                        }
+                                        else
+                                        {
+                                            <div class="student-work-list">
+                                                @foreach (var testItem in moduleGroup.Tests)
+                                                {
+                                                    <MudPaper Class="student-work-panel" Elevation="0">
+                                                        <div class="student-work-card__head">
+                                                            <div>
+                                                                <MudText Typo="Typo.subtitle1">@DisplayOrDash(testItem.Test.Consigne)</MudText>
+                                                                <MudText Typo="Typo.body2">@(testItem.Rendu is null ? "Test à remettre" : $"Soumis le {testItem.Rendu.DateSoumission?.ToString("yyyy-MM-dd HH:mm") ?? "-"}")</MudText>
+                                                            </div>
+                                                            <MudChip T="string" Variant="Variant.Filled" Color="@(testItem.Rendu is null ? Color.Warning : testItem.Rendu.Note.HasValue ? ((testItem.Rendu.Note ?? 0) >= 10 ? Color.Success : Color.Error) : Color.Info)">
+                                                                @(testItem.Rendu is null ? "À rendre" : testItem.Rendu.Note.HasValue ? $"{testItem.Rendu.Note}/20" : "Soumis")
+                                                            </MudChip>
+                                                        </div>
+                                                        @if (!string.IsNullOrWhiteSpace(testItem.Rendu?.CommentaireFormateur))
+                                                        {
+                                                            <MudText Typo="Typo.body2" Class="student-work-comment">@testItem.Rendu.CommentaireFormateur</MudText>
+                                                        }
+                                                        <div class="student-work-actions">
+                                                            @if (!string.IsNullOrWhiteSpace(testItem.Test.FichierConsigneUrl))
+                                                            {
+                                                                <MudButton Variant="Variant.Outlined" Color="Color.Info" Href="@testItem.Test.FichierConsigneUrl" Target="_blank">
+                                                                    Consigne
+                                                                </MudButton>
+                                                            }
+                                                            @if (!string.IsNullOrWhiteSpace(testItem.Rendu?.FichierUrl))
+                                                            {
+                                                                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Href="@testItem.Rendu.FichierUrl" Target="_blank">
+                                                                    Mon rendu
+                                                                </MudButton>
+                                                            }
+                                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="@($"/etudiant/formations/{testItem.FormationId}")">
+                                                                Ouvrir la formation
+                                                            </MudButton>
+                                                        </div>
+                                                    </MudPaper>
+                                                }
+                                            </div>
+                                        }
+                                    </MudExpansionPanel>
+                                </MudExpansionPanels>
+                            </MudExpansionPanel>
+                        }
+                    </MudExpansionPanels>
+                </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+    }
+</div>
+
+@code {
+    private readonly List<StudentQuizItem> _quizItems = [];
+    private readonly List<StudentTestItem> _testItems = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private string _searchText = string.Empty;
+
+    private List<StudentFormationEvaluationGroup> FilteredFormations =>
+        _quizItems
+            .GroupBy(item => new { item.FormationId, item.FormationTitle })
+            .Select(group => BuildFormationGroup(group.Key.FormationId, group.Key.FormationTitle))
+            .Where(group => group.Modules.Count > 0)
+            .OrderBy(group => group.FormationTitle)
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>("api/inscriptions/me") ?? [];
+
+            foreach (var inscription in inscriptions)
+            {
+                var formation = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{inscription.FormationId}");
+                if (formation is null)
+                {
+                    continue;
+                }
+
+                var participations = await Http.GetFromJsonAsync<List<ParticipationQuizDTO>>($"api/participationquizzes/inscription/{inscription.Id}") ?? [];
+                var rendus = await Http.GetFromJsonAsync<List<RenduTestDTO>>($"api/rendutests/inscription/{inscription.Id}") ?? [];
+                var modules = formation.Modules?.OrderBy(module => module.Ordre).ToList() ?? [];
+
+                foreach (var module in modules)
+                {
+                    foreach (var quiz in (module.Quizzes ?? Enumerable.Empty<QuizDTO>()).OrderBy(quiz => quiz.Id))
+                    {
+                        _quizItems.Add(new StudentQuizItem(
+                            inscription.FormationId,
+                            formation.Titre,
+                            module.Titre,
+                            quiz,
+                            participations.FirstOrDefault(participation => participation.QuizId == quiz.Id)));
+                    }
+
+                    foreach (var test in (module.Tests ?? Enumerable.Empty<TestDTO>()).OrderBy(test => test.Id))
+                    {
+                        _testItems.Add(new StudentTestItem(
+                            inscription.FormationId,
+                            formation.Titre,
+                            module.Titre,
+                            test,
+                            rendus.FirstOrDefault(rendu => rendu.TestId == test.Id)));
+                    }
+                }
+            }
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger vos évaluations.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private StudentFormationEvaluationGroup BuildFormationGroup(int formationId, string formationTitle)
+    {
+        var quizItems = _quizItems.Where(item => item.FormationId == formationId);
+        var testItems = _testItems.Where(item => item.FormationId == formationId);
+
+        var modules = quizItems.Select(item => item.ModuleTitle)
+            .Concat(testItems.Select(item => item.ModuleTitle))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(moduleTitle => BuildModuleGroup(formationId, moduleTitle))
+            .Where(group => group.Quizzes.Count > 0 || group.Tests.Count > 0)
+            .OrderBy(group => group.ModuleTitle)
+            .ToList();
+
+        return new StudentFormationEvaluationGroup(formationId, formationTitle, modules);
+    }
+
+    private StudentModuleEvaluationGroup BuildModuleGroup(int formationId, string moduleTitle)
+    {
+        var quizzes = _quizItems
+            .Where(item => item.FormationId == formationId && string.Equals(item.ModuleTitle, moduleTitle, StringComparison.OrdinalIgnoreCase))
+            .Where(item => MatchesSearch(item.FormationTitle, item.ModuleTitle, $"Quiz {item.Quiz.Id}", item.Quiz.Id.ToString()))
+            .OrderBy(item => item.Quiz.Id)
+            .ToList();
+
+        var tests = _testItems
+            .Where(item => item.FormationId == formationId && string.Equals(item.ModuleTitle, moduleTitle, StringComparison.OrdinalIgnoreCase))
+            .Where(item => MatchesSearch(item.FormationTitle, item.ModuleTitle, item.Test.Consigne))
+            .OrderBy(item => item.Test.Consigne)
+            .ToList();
+
+        return new StudentModuleEvaluationGroup(moduleTitle, quizzes, tests);
+    }
+
+    private bool MatchesSearch(params string?[] values)
+        => string.IsNullOrWhiteSpace(_searchText)
+           || values.Any(value => value?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) == true);
+
+    private static Color GetQuizColor(StudentQuizItem result)
+        => (result.Participation?.Score ?? 0) >= result.Quiz.ScoreMinimum ? Color.Success : Color.Warning;
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private sealed record StudentQuizItem(
+        int FormationId,
+        string FormationTitle,
+        string ModuleTitle,
+        QuizDTO Quiz,
+        ParticipationQuizDTO? Participation);
+
+    private sealed record StudentTestItem(
+        int FormationId,
+        string FormationTitle,
+        string ModuleTitle,
+        TestDTO Test,
+        RenduTestDTO? Rendu);
+
+    private sealed record StudentModuleEvaluationGroup(
+        string ModuleTitle,
+        List<StudentQuizItem> Quizzes,
+        List<StudentTestItem> Tests);
+
+    private sealed record StudentFormationEvaluationGroup(
+        int FormationId,
+        string FormationTitle,
+        List<StudentModuleEvaluationGroup> Modules);
+}

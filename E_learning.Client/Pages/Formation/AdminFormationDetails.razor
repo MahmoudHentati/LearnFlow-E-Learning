@@ -1,0 +1,646 @@
+@page "/admin/formations/{Id:int}"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@using E_learning.Models.Helpers
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Détail formation (Admin)</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8 mb-6 admin-formation-details">
+    <div class="admin-hero mb-6">
+        <div>
+            <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Class="mb-2 back-btn">
+                Retour aux formations
+            </MudButton>
+            <div class="d-flex align-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.MenuBook" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700;">Détail formation</MudText>
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Vue complète pour administration sans opérations de modification</MudText>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center pa-8">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+    }
+    else if (_formation is null)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Formation introuvable.</MudAlert>
+    }
+    else
+    {
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Modules</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@Modules.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Étudiants inscrits</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@_inscriptions.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Quiz / Questions</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@TotalQuizzes / @TotalQuestions</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Tests / Rendus</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@TotalTests / @_rendus.Count</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Outlined="true" Elevation="0" Class="pa-4 mb-4 content-shell">
+            <MudTabs Rounded="true" Border="true" PanelClass="tab-panel">
+                <MudTabPanel Text="Aperçu">
+                    <MudGrid Class="mt-2 overview-grid">
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-main-card">
+                                <div class="overview-block">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Titre</MudText>
+                                    <MudText Typo="Typo.h6" Class="overview-value">@DisplayOrDash(_formation.Titre)</MudText>
+                                </div>
+
+                                <div class="overview-block">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Description</MudText>
+                                    <MudText Typo="Typo.body1" Class="overview-value">@DisplayOrDash(_formation.Description)</MudText>
+                                </div>
+
+                                <div class="overview-block mb-0">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Prérequis</MudText>
+                                    <MudText Typo="Typo.body1" Class="overview-value">@DisplayOrDash(_formation.Prerequis)</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-side-card">
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Formateur</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.FormateurNom)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Difficulté</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.Difficulte)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Statut</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@FormationStatusHelper.GetDisplayLabel(_formation.Statut)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Catégorie</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.SousCategorie?.Categorie?.Nom)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Sous-catégorie</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.SousCategorie?.Nom)</MudText>
+                                </div>
+                                <div class="overview-kv mb-0">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Date création</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@(_formation.DateCreation?.ToString("yyyy-MM-dd") ?? "-")</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-side-card">
+                                <div class="student-section-head">
+                                    <MudIcon Icon="@Icons.Material.Filled.RateReview" Color="Color.Warning" />
+                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Avis étudiants</MudText>
+                                </div>
+                                <MudGrid>
+                                    <MudItem xs="12" md="3">
+                                        <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                            <MudText Typo="Typo.caption" Class="stat-label">Nombre d'avis</MudText>
+                                            <MudText Typo="Typo.h6" Class="stat-value">@_avis.Count</MudText>
+                                        </MudPaper>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                            <MudText Typo="Typo.caption" Class="stat-label">Moyenne</MudText>
+                                            <MudText Typo="Typo.h6" Class="stat-value">@GetAverageAvisLabel()</MudText>
+                                        </MudPaper>
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                            <MudText Typo="Typo.caption" Class="stat-label">Dernier avis</MudText>
+                                            <MudText Typo="Typo.body2">@GetLatestAvisSummary()</MudText>
+                                        </MudPaper>
+                                    </MudItem>
+                                </MudGrid>
+
+                                @if (_avis.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state mt-3">Aucun avis publié pour cette formation.</MudAlert>
+                                }
+                                else
+                                {
+                                    <div class="student-result-list mt-3">
+                                        @foreach (var avis in _avis.OrderByDescending(a => a.Date).Take(3))
+                                        {
+                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card avis-card">
+                                                <div class="resource-card-head">
+                                                    <div>
+                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">@GetStudentNameFromInscriptionId(avis.InscriptionId)</MudText>
+                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@GetAvisStars(avis.Note)</MudText>
+                                                    </div>
+                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning">@($"{avis.Note}/{AvisMaxNote}")</MudChip>
+                                                </div>
+                                                <MudText Typo="Typo.body2" Class="mt-2">@DisplayOrDash(avis.Commentaire)</MudText>
+                                                <MudText Typo="Typo.caption" Class="resource-eyebrow mt-2 d-block">Publié le @(avis.Date?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                            </MudPaper>
+                                        }
+                                    </div>
+                                }
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Étudiants inscrits">
+                    @if (_inscriptions.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">Aucun étudiant inscrit.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudExpansionPanels MultiExpansion="true" Class="mt-3 students-followup-panels">
+                            @foreach (var inscription in _inscriptions.OrderByDescending(i => i.DateInscription))
+                            {
+                                var quizParticipations = GetQuizParticipations(inscription.Id);
+                                var testSubmissions = GetRendus(inscription.Id);
+                                var studentAvis = GetAvis(inscription.Id);
+                                <MudExpansionPanel Text="@GetStudentPanelTitle(inscription)">
+                                    <MudGrid Class="mb-3">
+                                        <MudItem xs="12" md="3">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Email</MudText>
+                                                <MudText Typo="Typo.body2">@DisplayOrDash(inscription.Edudiant?.Email)</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="3">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Inscription</MudText>
+                                                <MudText Typo="Typo.body2">@(inscription.DateInscription?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Quiz passés</MudText>
+                                                <MudText Typo="Typo.h6" Class="stat-value">@quizParticipations.Count</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Tests rendus</MudText>
+                                                <MudText Typo="Typo.h6" Class="stat-value">@testSubmissions.Count</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Progression</MudText>
+                                                <MudText Typo="Typo.h6" Class="stat-value">@($"{ClampProgress(inscription.Progression):0}%")</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem xs="12" md="2">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 student-kpi-card">
+                                                <MudText Typo="Typo.caption" Class="stat-label">Avis</MudText>
+                                                <MudText Typo="Typo.h6" Class="stat-value">@studentAvis.Count</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" md="6">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 student-detail-card">
+                                                <div class="student-section-head">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Quiz" Color="Color.Primary" />
+                                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Quiz passés</MudText>
+                                                </div>
+
+                                                @if (quizParticipations.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucune participation quiz pour cet étudiant.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="student-result-list">
+                                                        @foreach (var participation in quizParticipations.OrderByDescending(p => p.DatePassage))
+                                                        {
+                                                            var maxScore = participation.Quiz?.Questions?.Sum(question => question.Bareme) ?? 0;
+                                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Quiz #@participation.QuizId</MudText>
+                                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@GetQuizTitle(participation)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="@GetQuizScoreColor(participation)">@($"{participation.Score}/{maxScore}")</MudChip>
+                                                                </div>
+                                                                <div class="student-result-meta">
+                                                                    <MudText Typo="Typo.body2">Date de passage: @(participation.DatePassage?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                                    <MudText Typo="Typo.body2">Score minimum: @(participation.Quiz?.ScoreMinimum ?? 0)</MudText>
+                                                                    <MudText Typo="Typo.body2">Durée limite: @(participation.Quiz?.DLimite ?? 0) min</MudText>
+                                                                </div>
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        </MudItem>
+
+                                        <MudItem xs="12" md="6">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 student-detail-card mb-4">
+                                                <div class="student-section-head">
+                                                    <MudIcon Icon="@Icons.Material.Filled.RateReview" Color="Color.Warning" />
+                                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Avis publiés</MudText>
+                                                </div>
+
+                                                @if (studentAvis.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucun avis pour cet étudiant.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="student-result-list">
+                                                        @foreach (var avis in studentAvis.OrderByDescending(a => a.Date))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card avis-card">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Avis étudiant</MudText>
+                                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@GetAvisStars(avis.Note)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning">@($"{avis.Note}/{AvisMaxNote}")</MudChip>
+                                                                </div>
+                                                                <div class="student-result-meta">
+                                                                    <MudText Typo="Typo.body2">Date: @(avis.Date?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                                </div>
+                                                                <MudText Typo="Typo.body2" Class="mt-2">@DisplayOrDash(avis.Commentaire)</MudText>
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        </MudItem>
+
+                                        <MudItem xs="12" md="6">
+                                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 student-detail-card">
+                                                <div class="student-section-head">
+                                                    <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Info" />
+                                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Tests et rendus</MudText>
+                                                </div>
+
+                                                @if (testSubmissions.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucun rendu de test pour cet étudiant.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="student-result-list">
+                                                        @foreach (var rendu in testSubmissions.OrderByDescending(r => r.DateSoumission))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Test #@rendu.TestId</MudText>
+                                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@DisplayOrDash(rendu.Test?.Consigne)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="@GetRenduNoteColor(rendu.Note)">@FormatRenduNote(rendu.Note)</MudChip>
+                                                                </div>
+                                                                <div class="student-result-meta">
+                                                                    <MudText Typo="Typo.body2">Soumis le: @(rendu.DateSoumission?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                                    <MudText Typo="Typo.body2">Commentaire: @DisplayOrDash(rendu.CommentaireFormateur)</MudText>
+                                                                </div>
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                </MudTabPanel>
+
+                <MudTabPanel Text="Modules, Quiz et Tests">
+                    @if (Modules.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">Aucun module disponible.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudExpansionPanels MultiExpansion="true" Class="mt-3 modules-panels">
+                            @foreach (var module in Modules)
+                            {
+                                var moduleQuizCount = module.Quizzes?.Count ?? 0;
+                                var moduleQuestionCount = module.Quizzes?.Sum(q => q.Questions?.Count ?? 0) ?? 0;
+                                var moduleTestCount = module.Tests?.Count ?? 0;
+
+                                <MudExpansionPanel Text="@($"Module {module.Ordre} - {DisplayOrDash(module.Titre)}")">
+                                    <MudStack Row="true" Spacing="1" Style="flex-wrap:wrap;" Class="mb-4">
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">Vidéos: @(module.Videos?.Count ?? 0)</MudChip>
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Info">Documents: @(module.Documents?.Count ?? 0)</MudChip>
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Secondary">Quiz: @moduleQuizCount</MudChip>
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning">Questions: @moduleQuestionCount</MudChip>
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Success">Tests: @moduleTestCount</MudChip>
+                                    </MudStack>
+
+                                    <MudExpansionPanels MultiExpansion="true" Class="module-content-panels">
+                                        <MudExpansionPanel Text="Vidéos">
+                                            @if (module.Videos is null || module.Videos.Count == 0)
+                                            {
+                                                <MudText Typo="Typo.body2">Aucune vidéo.</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudList T="string" Dense="true">
+                                                    @foreach (var video in module.Videos.OrderBy(v => v.Ordre))
+                                                    {
+                                                        <MudListItem>
+                                                            <MudText Typo="Typo.body2">@($"#{video.Ordre} - {DisplayOrDash(video.Titre)} ({video.Duree} min)")</MudText>
+                                                        </MudListItem>
+                                                    }
+                                                </MudList>
+                                            }
+                                        </MudExpansionPanel>
+
+                                        <MudExpansionPanel Text="Documents">
+                                            @if (module.Documents is null || module.Documents.Count == 0)
+                                            {
+                                                <MudText Typo="Typo.body2">Aucun document.</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudList T="string" Dense="true">
+                                                    @foreach (var doc in module.Documents.OrderBy(d => d.Ordre))
+                                                    {
+                                                        <MudListItem>
+                                                            <MudText Typo="Typo.body2">@($"#{doc.Ordre} - {DisplayOrDash(doc.Titre)} ({DisplayOrDash(doc.Format)})")</MudText>
+                                                        </MudListItem>
+                                                    }
+                                                </MudList>
+                                            }
+                                        </MudExpansionPanel>
+
+                                        <MudExpansionPanel Text="Quiz">
+                                            @if (module.Quizzes is null || module.Quizzes.Count == 0)
+                                            {
+                                                <MudText Typo="Typo.body2">Aucun quiz.</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudExpansionPanels MultiExpansion="true">
+                                                    @foreach (var quiz in module.Quizzes.OrderBy(q => q.Id))
+                                                    {
+                                                        var maxScore = quiz.Questions?.Sum(q => q.Bareme) ?? 0;
+                                                        <MudExpansionPanel Text="@($"Quiz #{quiz.Id} - Min {quiz.ScoreMinimum} / Max {maxScore}")">
+                                                            <MudText Typo="Typo.body2" Class="mb-2">Date limite (jours): @quiz.DLimite</MudText>
+                                                            @if (quiz.Questions is null || quiz.Questions.Count == 0)
+                                                            {
+                                                                <MudText Typo="Typo.body2">Aucune question.</MudText>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudList T="string" Dense="true">
+                                                                    @foreach (var question in quiz.Questions.OrderBy(q => q.Id))
+                                                                    {
+                                                                        <MudListItem>
+                                                                            <MudText Typo="Typo.body2">@($"{question.Enonce} | Type: {question.Type} | Barème: {question.Bareme}")</MudText>
+                                                                        </MudListItem>
+                                                                    }
+                                                                </MudList>
+                                                            }
+                                                        </MudExpansionPanel>
+                                                    }
+                                                </MudExpansionPanels>
+                                            }
+                                        </MudExpansionPanel>
+
+                                        <MudExpansionPanel Text="Tests">
+                                            @if (module.Tests is null || module.Tests.Count == 0)
+                                            {
+                                                <MudText Typo="Typo.body2">Aucun test.</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudExpansionPanels MultiExpansion="true">
+                                                    @foreach (var test in module.Tests.OrderBy(t => t.Id))
+                                                    {
+                                                        <MudExpansionPanel Text="@DisplayOrDash(test.Consigne)">
+                                                            <MudText Typo="Typo.caption" Class="mb-2">Rendus reçus: @GetRenduCountForTest(test.Id)</MudText>
+                                                            @if (GetRendusForTest(test.Id).Count == 0)
+                                                            {
+                                                                <MudText Typo="Typo.body2">Aucun rendu pour ce test.</MudText>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudList T="string" Dense="true">
+                                                                    @foreach (var rendu in GetRendusForTest(test.Id).OrderByDescending(r => r.DateSoumission))
+                                                                    {
+                                                                        <MudListItem>
+                                                                            <MudText Typo="Typo.body2">@($"{GetStudentNameFromInscriptionId(rendu.InscriptionId)} - {(rendu.Note.HasValue ? $"{rendu.Note}/20" : "Non noté")}")</MudText>
+                                                                        </MudListItem>
+                                                                    }
+                                                                </MudList>
+                                                            }
+                                                        </MudExpansionPanel>
+                                                    }
+                                                </MudExpansionPanels>
+                                            }
+                                        </MudExpansionPanel>
+                                    </MudExpansionPanels>
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                </MudTabPanel>
+            </MudTabs>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private FormationDTO? _formation;
+    private List<InscriptionDTO> _inscriptions = [];
+    private List<ParticipationQuizDTO> _participations = [];
+    private List<RenduTestDTO> _rendus = [];
+    private List<AvisDTO> _avis = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private const int AvisMaxNote = 6;
+
+    private List<ModuleDTO> Modules =>
+        _formation?.Modules?.OrderBy(m => m.Ordre).ToList() ?? [];
+
+    private int TotalQuizzes => Modules.Sum(m => m.Quizzes?.Count ?? 0);
+    private int TotalQuestions => Modules.Sum(m => m.Quizzes?.Sum(q => q.Questions?.Count ?? 0) ?? 0);
+    private int TotalTests => Modules.Sum(m => m.Tests?.Count ?? 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        _participations = [];
+        _rendus = [];
+        _avis = [];
+
+        try
+        {
+            _formation = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{Id}");
+            _inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>($"api/inscriptions/formation/{Id}") ?? [];
+            _avis = await Http.GetFromJsonAsync<List<AvisDTO>>($"api/avis/formation/{Id}") ?? [];
+
+            var inscriptionIds = _inscriptions.Select(i => i.Id).ToList();
+            var participationTasks = inscriptionIds
+                .Select(inscriptionId => Http.GetFromJsonAsync<List<ParticipationQuizDTO>>($"api/participationquizzes/inscription/{inscriptionId}"));
+            var renduTasks = inscriptionIds
+                .Select(inscriptionId => Http.GetFromJsonAsync<List<RenduTestDTO>>($"api/rendutests/inscription/{inscriptionId}"));
+
+            var participationsByInscription = await Task.WhenAll(participationTasks);
+            var rendusByInscription = await Task.WhenAll(renduTasks);
+
+            _participations = participationsByInscription.SelectMany(list => list ?? []).ToList();
+            _rendus = rendusByInscription.SelectMany(list => list ?? []).ToList();
+
+            foreach (var participation in _participations)
+            {
+                participation.Quiz = FindQuiz(participation.QuizId);
+            }
+
+            foreach (var rendu in _rendus)
+            {
+                rendu.Test = FindTest(rendu.TestId);
+                rendu.Inscription ??= _inscriptions.FirstOrDefault(i => i.Id == rendu.InscriptionId);
+            }
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger le détail de la formation.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private int GetQuizParticipationCount(int inscriptionId)
+        => _participations.Count(p => p.InscriptionId == inscriptionId);
+
+    private List<ParticipationQuizDTO> GetQuizParticipations(int inscriptionId)
+        => _participations.Where(p => p.InscriptionId == inscriptionId).ToList();
+
+    private int GetRenduCount(int inscriptionId)
+        => _rendus.Count(r => r.InscriptionId == inscriptionId);
+
+    private List<RenduTestDTO> GetRendus(int inscriptionId)
+        => _rendus.Where(r => r.InscriptionId == inscriptionId).ToList();
+
+    private List<AvisDTO> GetAvis(int inscriptionId)
+        => _avis.Where(a => a.InscriptionId == inscriptionId).ToList();
+
+    private int GetRenduCountForTest(int testId)
+        => _rendus.Count(r => r.TestId == testId);
+
+    private List<RenduTestDTO> GetRendusForTest(int testId)
+        => _rendus.Where(r => r.TestId == testId).ToList();
+
+    private static float ClampProgress(float value)
+        => Math.Clamp(value, 0, 100);
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string GetStudentName(InscriptionDTO inscription)
+    {
+        var firstName = inscription.Edudiant?.FirstName?.Trim();
+        var lastName = inscription.Edudiant?.LastName?.Trim();
+        var fullName = $"{firstName} {lastName}".Trim();
+
+        if (!string.IsNullOrWhiteSpace(fullName))
+        {
+            return fullName;
+        }
+
+        return !string.IsNullOrWhiteSpace(inscription.Edudiant?.UserName)
+            ? inscription.Edudiant!.UserName
+            : "Étudiant";
+    }
+
+    private QuizDTO? FindQuiz(int quizId)
+        => Modules.SelectMany(module => module.Quizzes ?? []).FirstOrDefault(quiz => quiz.Id == quizId);
+
+    private TestDTO? FindTest(int testId)
+        => Modules.SelectMany(module => module.Tests ?? []).FirstOrDefault(test => test.Id == testId);
+
+    private string GetStudentPanelTitle(InscriptionDTO inscription)
+        => $"{GetStudentName(inscription)} - {ClampProgress(inscription.Progression):0}%";
+
+    private string GetQuizTitle(ParticipationQuizDTO participation)
+        => participation.Quiz?.Module is not null
+            ? $"{DisplayOrDash(participation.Quiz.Module.Titre)} - {participation.Quiz.Questions?.Count ?? 0} question(s)"
+            : $"Quiz #{participation.QuizId}";
+
+    private static Color GetQuizScoreColor(ParticipationQuizDTO participation)
+        => participation.Score >= (participation.Quiz?.ScoreMinimum ?? 0) ? Color.Success : Color.Warning;
+
+    private static Color GetRenduNoteColor(float? note)
+        => note is null ? Color.Warning : note >= 10 ? Color.Success : Color.Error;
+
+    private static string FormatRenduNote(float? note)
+        => note.HasValue ? $"{note}/20" : "En attente";
+
+    private string GetStudentNameFromInscriptionId(int inscriptionId)
+    {
+        var inscription = _inscriptions.FirstOrDefault(i => i.Id == inscriptionId);
+        return inscription is null ? "Étudiant" : GetStudentName(inscription);
+    }
+
+    private double GetAverageAvisNote()
+        => _avis.Count == 0 ? 0 : _avis.Average(avis => avis.Note);
+
+    private string GetAverageAvisLabel()
+        => _avis.Count == 0 ? "-" : $"{GetAverageAvisNote():0.0}/{AvisMaxNote}";
+
+    private string GetLatestAvisSummary()
+    {
+        var latest = _avis.OrderByDescending(avis => avis.Date).FirstOrDefault();
+        if (latest is null)
+        {
+            return "Aucun avis récent";
+        }
+
+        return $"{GetStudentNameFromInscriptionId(latest.InscriptionId)} - {latest.Note}/{AvisMaxNote}";
+    }
+
+    private static string GetAvisStars(int note)
+    {
+        var normalized = Math.Clamp(note, 0, AvisMaxNote);
+        return new string('★', normalized) + new string('☆', AvisMaxNote - normalized);
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/admin/formations");
+    }
+}

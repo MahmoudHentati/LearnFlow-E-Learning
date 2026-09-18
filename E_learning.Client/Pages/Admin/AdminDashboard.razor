@@ -1,0 +1,224 @@
+@page "/admin/dashboard"
+@attribute [Authorize(Roles = "SuperAdmin, Admin")]
+@using E_learning.Models.Helpers
+@inject HttpClient Http
+
+<PageTitle>Tableau de bord admin – EduLearn</PageTitle>
+
+<div class="admin-dashboard">
+    <header class="admin-header">
+        <h1>Tableau de bord administrateur</h1>
+        <p>Vue d'ensemble dynamique de la plateforme.</p>
+    </header>
+
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" Class="mt-6" />
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+    }
+    else
+    {
+        <section class="admin-stats">
+            <article class="admin-stat-card">
+                <h2>@_formations.Count</h2>
+                <p>Formations</p>
+            </article>
+            <article class="admin-stat-card">
+                <h2>@_categories.Count</h2>
+                <p>Catégories</p>
+            </article>
+            <article class="admin-stat-card">
+                <h2>@_sousCategories.Count</h2>
+                <p>Sous-catégories</p>
+            </article>
+            <article class="admin-stat-card">
+                <h2>@_users.Count</h2>
+                <p>Utilisateurs</p>
+            </article>
+        </section>
+
+        <section class="admin-grid">
+            <article class="admin-card">
+                <div class="admin-card-title">
+                    <MudIcon Icon="@Icons.Material.Filled.School" />
+                    <h2>Formations</h2>
+                </div>
+                <p>@_publishedFormationCount formation(s) actives sur @_formations.Count au total.</p>
+                <div class="admin-actions">
+                    <a href="/admin/formations" class="admin-btn admin-btn-primary">Gérer les formations</a>
+                </div>
+            </article>
+
+            <article class="admin-card">
+                <div class="admin-card-title">
+                    <MudIcon Icon="@Icons.Material.Filled.Category" />
+                    <h2>Catégories</h2>
+                </div>
+                <p>@_categories.Count catégorie(s) actives pour organiser les parcours.</p>
+                <div class="admin-actions">
+                    <a href="/admin/categories" class="admin-btn admin-btn-primary">Gérer les catégories</a>
+                </div>
+            </article>
+
+            <article class="admin-card">
+                <div class="admin-card-title">
+                    <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" />
+                    <h2>Sous-catégories</h2>
+                </div>
+                <p>@_sousCategories.Count sous-catégorie(s) disponibles dans la base.</p>
+                <div class="admin-actions">
+                    <a href="/admin/sous-categories" class="admin-btn admin-btn-primary">Gérer les sous-catégories</a>
+                </div>
+            </article>
+
+            <article class="admin-card">
+                <div class="admin-card-title">
+                    <MudIcon Icon="@Icons.Material.Filled.Group" />
+                    <h2>Utilisateurs</h2>
+                </div>
+                <p>@GetUserSummary()</p>
+                <div class="admin-actions">
+                    <a href="/admin/users/students" class="admin-btn admin-btn-primary">Étudiants</a>
+                    <a href="/admin/users/instructors" class="admin-btn admin-btn-outline">Formateurs</a>
+                    <a href="/admin/users/admins" class="admin-btn admin-btn-outline">Admins</a>
+                </div>
+            </article>
+        </section>
+    }
+</div>
+
+<style>
+    .admin-dashboard {
+        display: grid;
+        gap: 24px;
+    }
+
+    .admin-header {
+        display: grid;
+        gap: 8px;
+    }
+
+    .admin-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+    }
+
+    .admin-stat-card {
+        padding: 20px;
+        border-radius: 16px;
+        background: var(--app-surface-strong, rgba(255,255,255,.08));
+        border: 1px solid var(--app-border, rgba(255,255,255,.1));
+    }
+
+    .admin-stat-card h2 {
+        margin: 0 0 6px;
+    }
+
+    .admin-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+    }
+
+    .admin-card {
+        padding: 20px;
+        border-radius: 18px;
+        background: var(--app-surface-strong, rgba(255,255,255,.08));
+        border: 1px solid var(--app-border, rgba(255,255,255,.1));
+    }
+
+    .admin-card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .admin-card-title h2 {
+        margin: 0;
+    }
+
+    .admin-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .admin-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 10px;
+        text-decoration: none;
+    }
+
+    .admin-btn-primary {
+        background: #4f46e5;
+        color: white;
+    }
+
+    .admin-btn-outline {
+        border: 1px solid rgba(79, 70, 229, .35);
+        color: #4f46e5;
+    }
+
+    .admin-roadmap {
+        padding: 20px;
+        border-radius: 18px;
+        background: var(--app-surface-strong, rgba(255,255,255,.08));
+        border: 1px solid var(--app-border, rgba(255,255,255,.1));
+    }
+</style>
+
+@code {
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private List<FormationDTO> _formations = [];
+    private List<CategorieDTO> _categories = [];
+    private List<SousCategorieDTO> _sousCategories = [];
+    private List<AdminUserDto> _users = [];
+    private int _studentCount;
+    private int _instructorCount;
+    private int _activeUserCount;
+    private int _publishedFormationCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var formationsTask = Http.GetFromJsonAsync<List<FormationDTO>>("api/formation");
+            var categoriesTask = Http.GetFromJsonAsync<List<CategorieDTO>>("api/categories");
+            var sousCategoriesTask = Http.GetFromJsonAsync<List<SousCategorieDTO>>("api/souscategories");
+            var usersTask = Http.GetFromJsonAsync<List<AdminUserDto>>("api/users");
+
+            await Task.WhenAll(formationsTask, categoriesTask, sousCategoriesTask, usersTask);
+
+            _formations = await formationsTask ?? [];
+            _categories = await categoriesTask ?? [];
+            _sousCategories = await sousCategoriesTask ?? [];
+            _users = await usersTask ?? [];
+
+            _studentCount = _users.Count(user => string.Equals(user.Role, "Student", StringComparison.OrdinalIgnoreCase));
+            _instructorCount = _users.Count(user => string.Equals(user.Role, "Instructor", StringComparison.OrdinalIgnoreCase));
+            _activeUserCount = _users.Count(user => user.IsActive);
+            _publishedFormationCount = _formations.Count(formation => FormationStatusHelper.IsActive(formation.Statut));
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger le tableau de bord administrateur.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetUserSummary()
+        => $"{_studentCount} étudiant(s), {_instructorCount} formateur(s), {_users.Count - _studentCount - _instructorCount} admin(s).";
+}

@@ -1,0 +1,1288 @@
+@page "/etudiant/formations/{Id:int}"
+@using E_Learning.Models.Enums
+@using E_learning.Models.Helpers
+@using System.IO
+@using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize(Roles = "Student")]
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Détail formation étudiant</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8 mb-6 student-formation-details">
+    <div class="student-hero mb-6">
+        <div class="d-flex justify-space-between align-center gap-4 flex-wrap">
+            <div>
+                <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => NavigationManager.NavigateTo("/etudiant-mes-formations"))" Class="mb-2 back-btn">
+                    Retour à mes formations
+                </MudButton>
+                <div class="d-flex align-center gap-3">
+                    <MudIcon Icon="@Icons.Material.Filled.School" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h4" Style="font-weight:700;">Parcours de formation</MudText>
+                </div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary ml-11">Suivez les contenus, passez les quiz et remettez vos tests depuis une seule page</MudText>
+            </div>
+            @if (_formation is not null)
+            {
+                <MudStack Row="true" Spacing="1" Style="flex-wrap:wrap;">
+                    <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined">@GetCategoryName(_formation)</MudChip>
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">@($"{AutomaticProgress:0}% de progression")</MudChip>
+                </MudStack>
+            }
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center pa-8">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_errorMessage</MudAlert>
+    }
+    else if (_formation is null)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Formation introuvable.</MudAlert>
+    }
+    else if (_inscription is null)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+            Vous devez être inscrit à cette formation pour accéder aux contenus et aux évaluations.
+        </MudAlert>
+    }
+    else
+    {
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Modules</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@Modules.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Ressources</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@(TotalVideos + TotalDocuments)</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Quiz passés</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@_participations.Count</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Outlined="true" Elevation="0" Class="pa-4 stat-card">
+                    <MudText Typo="Typo.caption" Class="stat-label">Tests rendus</MudText>
+                    <MudText Typo="Typo.h5" Class="stat-value">@_rendus.Count</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Outlined="true" Elevation="0" Class="pa-4 mb-4 content-shell">
+            <MudTabs Rounded="true" Border="true" PanelClass="tab-panel">
+                <MudTabPanel Text="Aperçu">
+                    <MudGrid Class="mt-2 overview-grid">
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-main-card overview-highlight-card">
+                                <div class="overview-section-head">
+                                    <div>
+                                        <MudText Typo="Typo.caption" Class="overview-label">Présentation</MudText>
+                                        <MudText Typo="Typo.h5" Class="overview-heading">@DisplayOrDash(_formation.Titre)</MudText>
+                                    </div>
+                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">@DisplayOrDash(_formation.Difficulte)</MudChip>
+                                </div>
+                                <div class="overview-block">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Description</MudText>
+                                    <MudText Typo="Typo.body1" Class="overview-value">@DisplayOrDash(_formation.Description)</MudText>
+                                </div>
+                                <div class="overview-block mb-0">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Prérequis</MudText>
+                                    <MudText Typo="Typo.body1" Class="overview-value">@DisplayOrDash(_formation.Prerequis)</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-side-card">
+                                <div class="overview-section-head mb-2">
+                                    <div>
+                                        <MudText Typo="Typo.caption" Class="overview-label">Informations</MudText>
+                                        <MudText Typo="Typo.h6" Class="overview-heading">Repères de la formation</MudText>
+                                    </div>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Formateur</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.FormateurNom)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Difficulté</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.Difficulte)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Statut</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@FormationStatusHelper.GetDisplayLabel(_formation.Statut)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Catégorie</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.SousCategorie?.Categorie?.Nom)</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Sous-catégorie</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@DisplayOrDash(_formation.SousCategorie?.Nom)</MudText>
+                                </div>
+                                <div class="overview-kv mb-0">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Date création</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@(_formation.DateCreation?.ToString("yyyy-MM-dd") ?? "-")</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Modules et contenu">
+                    @if (Modules.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">Aucun module disponible.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudExpansionPanels MultiExpansion="true" Class="mt-3 module-panels">
+                            @foreach (var module in Modules)
+                            {
+                                <MudExpansionPanel Text="@($"Module {module.Ordre} - {DisplayOrDash(module.Titre)}")">
+                                    <MudStack Row="true" Spacing="1" Style="flex-wrap:wrap;" Class="mb-3">
+                                        <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small" Color="Color.Success">Vidéos: @(module.Videos?.Count ?? 0)</MudChip>
+                                        <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary">Documents: @(module.Documents?.Count ?? 0)</MudChip>
+                                        <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary">Quiz: @(module.Quizzes?.Count ?? 0)</MudChip>
+                                        <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info">Tests: @(module.Tests?.Count ?? 0)</MudChip>
+                                    </MudStack>
+
+                                    <MudPaper Outlined="true" Elevation="0" Class="pa-3 module-tab-shell">
+                                        <MudTabs Rounded="true" Border="true" PanelClass="module-tab-panel">
+                                            <MudTabPanel Text="Vidéos">
+                                                @if (module.Videos is null || module.Videos.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="content-empty-state">Aucune vidéo dans ce module.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="resource-grid">
+                                                        @foreach (var video in module.Videos.OrderBy(v => v.Ordre))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="resource-card resource-card-video">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Vidéo #@video.Ordre</MudText>
+                                                                        <MudText Typo="Typo.subtitle1" Class="resource-title">@DisplayOrDash(video.Titre)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Success">@($"{Math.Max(0, video.Duree)} min")</MudChip>
+                                                                </div>
+                                                                @if (!string.IsNullOrWhiteSpace(video.UrlVideo))
+                                                                {
+                                                                    <video class="student-media-preview" controls preload="metadata">
+                                                                        <source src="@video.UrlVideo" />
+                                                                    </video>
+                                                                }
+                                                                <div class="resource-actions">
+                                                                    <a class="resource-action-link" href="@video.UrlVideo" target="_blank" rel="noopener noreferrer">Ouvrir</a>
+                                                                    <a class="resource-action-link secondary" href="@video.UrlVideo" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName(video.Titre, video.UrlVideo)">Télécharger</a>
+                                                                </div>
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudTabPanel>
+
+                                            <MudTabPanel Text="Documents">
+                                                @if (module.Documents is null || module.Documents.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="content-empty-state">Aucun document dans ce module.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="resource-grid">
+                                                        @foreach (var doc in module.Documents.OrderBy(d => d.Ordre))
+                                                        {
+                                                            <MudPaper Outlined="true" Elevation="0" Class="resource-card resource-card-document">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Document #@doc.Ordre</MudText>
+                                                                        <MudText Typo="Typo.subtitle1" Class="resource-title">@DisplayOrDash(doc.Titre)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Secondary">@GetDocumentFormatLabel(doc)</MudChip>
+                                                                </div>
+                                                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Ressource pédagogique téléchargeable ou consultable dans un nouvel onglet.</MudText>
+                                                                <div class="resource-actions">
+                                                                    <a class="resource-action-link" href="@doc.UrlFichier" target="_blank" rel="noopener noreferrer">Ouvrir</a>
+                                                                    <a class="resource-action-link secondary" href="@doc.UrlFichier" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName(doc.Titre, doc.UrlFichier)">Télécharger</a>
+                                                                </div>
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudTabPanel>
+
+                                            <MudTabPanel Text="Quiz">
+                                                @if (module.Quizzes is null || module.Quizzes.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="content-empty-state">Aucun quiz dans ce module.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <MudExpansionPanels MultiExpansion="true" Class="quiz-panels">
+                                                        @foreach (var quiz in module.Quizzes.OrderBy(q => q.Id))
+                                                        {
+                                                            var participation = GetParticipation(quiz.Id);
+                                                            var questionCount = quiz.Questions?.Count ?? 0;
+                                                            var maxScore = GetQuizMaximumScore(quiz);
+                                                            var isQuizLocked = participation is not null;
+                                                            <MudExpansionPanel Class="quiz-panel-item" Text="@GetQuizPanelTitle(quiz, module, participation, maxScore)">
+                                                                <MudPaper Outlined="true" Elevation="0" Class="evaluation-card quiz-card">
+                                                                <div class="resource-card-head quiz-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Quiz #@quiz.Id</MudText>
+                                                                        <MudText Typo="Typo.subtitle1" Class="resource-title">@GetQuizTitle(quiz, module)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="@(participation is null ? Color.Warning : GetQuizParticipationColor(participation, quiz))">
+                                                                        @(participation is null ? "Non passé" : $"{participation.Score}/{maxScore}")
+                                                                    </MudChip>
+                                                                </div>
+
+                                                                <div class="resource-meta-row">
+                                                                    <MudText Typo="Typo.body2">Questions: @questionCount</MudText>
+                                                                    <MudText Typo="Typo.body2">Score minimum: @quiz.ScoreMinimum</MudText>
+                                                                    <MudText Typo="Typo.body2">Durée limite: @quiz.DLimite min</MudText>
+                                                                </div>
+
+                                                                @if (participation is not null)
+                                                                {
+                                                                    <MudAlert Severity="@(participation.Score >= quiz.ScoreMinimum ? Severity.Success : Severity.Warning)" Variant="Variant.Outlined" Class="mb-3">
+                                                                        Dernier passage le @(participation.DatePassage?.ToString("yyyy-MM-dd HH:mm") ?? "-") avec un score de @participation.Score / @maxScore.
+                                                                    </MudAlert>
+                                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="mb-3">
+                                                                        Ce quiz est verrouillé après validation. Les réponses ne peuvent plus être modifiées.
+                                                                    </MudAlert>
+                                                                }
+
+                                                                @if (questionCount == 0)
+                                                                {
+                                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text">Ce quiz ne contient pas encore de questions.</MudAlert>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <div class="question-list">
+                                                                        @foreach (var question in quiz.Questions.OrderBy(q => q.Id))
+                                                                        {
+                                                                            <MudPaper Outlined="true" Elevation="0" Class="question-card">
+                                                                                <MudText Typo="Typo.subtitle2" Class="mb-1">@question.Enonce</MudText>
+                                                                                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2 d-block">Barème: @question.Bareme point(s)</MudText>
+                                                                                <MudRadioGroup T="string" Value="GetQuizAnswer(quiz.Id, question.Id)" ValueChanged="value => SetQuizAnswer(quiz.Id, question.Id, value)" Disabled="@isQuizLocked">
+                                                                                    <MudRadio T="string" Value="@("VRAI")" Color="Color.Success" Disabled="@isQuizLocked">Vrai</MudRadio>
+                                                                                    <MudRadio T="string" Value="@("FAUX")" Color="Color.Error" Disabled="@isQuizLocked">Faux</MudRadio>
+                                                                                </MudRadioGroup>
+                                                                                @if (isQuizLocked)
+                                                                                {
+                                                                                    <MudText Typo="Typo.caption" Class="submitted-answer-label">
+                                                                                        @GetSubmittedQuizAnswerLabel(quiz.Id, question.Id)
+                                                                                    </MudText>
+                                                                                }
+                                                                            </MudPaper>
+                                                                        }
+                                                                    </div>
+                                                                }
+
+                                                                @if (TryGetQuizError(quiz.Id, out var quizError))
+                                                                {
+                                                                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-3">@quizError</MudAlert>
+                                                                }
+
+                                                                @if (TryGetQuizSuccess(quiz.Id, out var quizSuccess))
+                                                                {
+                                                                    <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mt-3">@quizSuccess</MudAlert>
+                                                                }
+
+                                                                @if (!isQuizLocked)
+                                                                {
+                                                                    <div class="resource-actions mt-3">
+                                                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_quizSubmittingIds.Contains(quiz.Id) || !CanSubmitQuiz(quiz))" OnClick="@(() => SubmitQuizAsync(quiz))">
+                                                                            @(_quizSubmittingIds.Contains(quiz.Id) ? "Envoi..." : "Passer le quiz")
+                                                                        </MudButton>
+                                                                        <MudButton Variant="Variant.Text" Disabled="_quizSubmittingIds.Contains(quiz.Id)" OnClick="@(() => ResetQuizAnswers(quiz.Id))">
+                                                                            Réinitialiser
+                                                                        </MudButton>
+                                                                    </div>
+                                                                }
+                                                            </MudPaper>
+                                                            </MudExpansionPanel>
+                                                        }
+                                                    </MudExpansionPanels>
+                                                }
+                                            </MudTabPanel>
+
+                                            <MudTabPanel Text="Tests">
+                                                @if (module.Tests is null || module.Tests.Count == 0)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="content-empty-state">Aucun test dans ce module.</MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <div class="evaluation-grid">
+                                                        @foreach (var test in module.Tests.OrderBy(t => t.Id))
+                                                        {
+                                                            var rendu = GetRendu(test.Id);
+                                                            <MudPaper Outlined="true" Elevation="0" Class="evaluation-card test-card">
+                                                                <div class="resource-card-head">
+                                                                    <div>
+                                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Test #@test.Id</MudText>
+                                                                        <MudText Typo="Typo.subtitle1" Class="resource-title">@DisplayOrDash(test.Consigne)</MudText>
+                                                                    </div>
+                                                                    <MudChip T="string" Variant="Variant.Outlined" Color="@(rendu is null ? Color.Warning : Color.Success)">
+                                                                        @(rendu is null ? "À remettre" : "Rendu envoyé")
+                                                                    </MudChip>
+                                                                </div>
+
+                                                                <div class="resource-actions mb-3">
+                                                                    @if (!string.IsNullOrWhiteSpace(test.FichierConsigneUrl))
+                                                                    {
+                                                                        <a class="resource-action-link" href="@test.FichierConsigneUrl" target="_blank" rel="noopener noreferrer">Ouvrir la consigne</a>
+                                                                        <a class="resource-action-link secondary" href="@test.FichierConsigneUrl" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName($"consigne-test-{test.Id}", test.FichierConsigneUrl)">Télécharger</a>
+                                                                    }
+                                                                </div>
+
+                                                                @if (rendu is not null)
+                                                                {
+                                                                    <MudPaper Outlined="true" Elevation="0" Class="submitted-work-box mb-3 pa-3">
+                                                                        <div class="resource-meta-row">
+                                                                            <MudText Typo="Typo.body2">Soumis le: @(rendu.DateSoumission?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                                            <MudText Typo="Typo.body2">Note: @(rendu.Note.HasValue ? $"{rendu.Note}/20" : "En attente")</MudText>
+                                                                        </div>
+                                                                        @if (!string.IsNullOrWhiteSpace(rendu.CommentaireFormateur))
+                                                                        {
+                                                                            <MudText Typo="Typo.body2" Class="mt-2">Retour formateur: @rendu.CommentaireFormateur</MudText>
+                                                                        }
+                                                                        @if (!string.IsNullOrWhiteSpace(rendu.FichierUrl))
+                                                                        {
+                                                                            <div class="resource-actions mt-2">
+                                                                                <a class="resource-action-link" href="@rendu.FichierUrl" target="_blank" rel="noopener noreferrer">Ouvrir mon rendu</a>
+                                                                                <a class="resource-action-link secondary" href="@rendu.FichierUrl" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName($"rendu-{test.Id}", rendu.FichierUrl)">Télécharger mon rendu</a>
+                                                                            </div>
+                                                                        }
+                                                                    </MudPaper>
+                                                                }
+
+                                                                <MudTextField T="string" Value="GetTestDraftContent(test.Id)" ValueChanged="value => SetTestDraftContent(test.Id, value)" Label="Message ou réponse" Variant="Variant.Outlined" Lines="4" FullWidth="true" Class="mb-3" Disabled="@(rendu is not null)" />
+
+                                                                @if (rendu is null)
+                                                                {
+                                                                    <div class="test-upload-box mb-3">
+                                                                        <label class="test-upload-label" for="@($"student-test-file-{test.Id}")">Choisir un fichier</label>
+                                                                        <InputFile id="@($"student-test-file-{test.Id}")" OnChange="args => OnStudentTestFileSelected(test.Id, args)" class="test-upload-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,image/*" />
+                                                                        <div class="test-upload-help">
+                                                                            @if (string.IsNullOrWhiteSpace(GetStudentTestFileName(test.Id)))
+                                                                            {
+                                                                                <span>Aucun fichier sélectionné.</span>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <span>Fichier sélectionné : @GetStudentTestFileName(test.Id)</span>
+                                                                            }
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="mb-3">
+                                                                        Ce test a déjà été envoyé. Le contenu et le fichier ne peuvent plus être modifiés.
+                                                                    </MudAlert>
+                                                                }
+
+                                                                @if (TryGetTestError(test.Id, out var testError))
+                                                                {
+                                                                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@testError</MudAlert>
+                                                                }
+
+                                                                @if (TryGetTestSuccess(test.Id, out var testSuccess))
+                                                                {
+                                                                    <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mb-3">@testSuccess</MudAlert>
+                                                                }
+
+                                                                @if (rendu is null)
+                                                                {
+                                                                    <div class="resource-actions">
+                                                                        <MudButton Variant="Variant.Filled" Color="Color.Info" Disabled="_testSubmittingIds.Contains(test.Id)" OnClick="@(() => SubmitTestAsync(test))">
+                                                                            @(_testSubmittingIds.Contains(test.Id) ? "Envoi..." : "Envoyer mon test")
+                                                                        </MudButton>
+                                                                        <MudButton Variant="Variant.Text" Disabled="_testSubmittingIds.Contains(test.Id)" OnClick="@(() => ResetTestDraft(test.Id, preserveExistingContent: true))">
+                                                                            Réinitialiser le brouillon
+                                                                        </MudButton>
+                                                                    </div>
+                                                                }
+                                                            </MudPaper>
+                                                        }
+                                                    </div>
+                                                }
+                                            </MudTabPanel>
+                                        </MudTabs>
+                                    </MudPaper>
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                </MudTabPanel>
+
+                <MudTabPanel Text="Mon suivi">
+                    <MudGrid Class="mt-2">
+                        <MudItem xs="12" md="4">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 stat-card compact-stat">
+                                <MudText Typo="Typo.caption" Class="stat-label">Progression automatique</MudText>
+                                <MudText Typo="Typo.h6" Class="stat-value">@($"{AutomaticProgress:0}%")</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 stat-card compact-stat">
+                                <MudText Typo="Typo.caption" Class="stat-label">Quiz validés</MudText>
+                                <MudText Typo="Typo.h6" Class="stat-value">@GetValidatedQuizCount()</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-3 stat-card compact-stat">
+                                <MudText Typo="Typo.caption" Class="stat-label">Tests remis</MudText>
+                                <MudText Typo="Typo.h6" Class="stat-value">@_rendus.Count</MudText>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudGrid Class="mt-1">
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 student-detail-card">
+                                <div class="student-section-head">
+                                    <MudIcon Icon="@Icons.Material.Filled.Quiz" Color="Color.Primary" />
+                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Historique des quiz</MudText>
+                                </div>
+                                @if (_participations.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucune participation quiz pour le moment.</MudAlert>
+                                }
+                                else
+                                {
+                                    <div class="student-result-list">
+                                        @foreach (var participation in _participations.OrderByDescending(p => p.DatePassage))
+                                        {
+                                            var quiz = FindQuiz(participation.QuizId);
+                                            var maxScore = GetQuizMaximumScore(quiz);
+                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card">
+                                                <div class="resource-card-head">
+                                                    <div>
+                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Quiz #@participation.QuizId</MudText>
+                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@GetQuizTitle(quiz, FindModule(participation.QuizId))</MudText>
+                                                    </div>
+                                                    <MudChip T="string" Variant="Variant.Outlined" Color="@GetQuizParticipationColor(participation, quiz)">
+                                                        @($"{participation.Score}/{maxScore}")
+                                                    </MudChip>
+                                                </div>
+                                                <div class="student-result-meta">
+                                                    <MudText Typo="Typo.body2">Date de passage: @(participation.DatePassage?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                    <MudText Typo="Typo.body2">Score minimum: @(quiz?.ScoreMinimum ?? 0)</MudText>
+                                                </div>
+                                            </MudPaper>
+                                        }
+                                    </div>
+                                }
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="6">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 student-detail-card">
+                                <div class="student-section-head">
+                                    <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Info" />
+                                    <MudText Typo="Typo.subtitle1" Class="student-section-title">Historique des tests</MudText>
+                                </div>
+                                @if (_rendus.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="content-empty-state">Aucun rendu de test pour le moment.</MudAlert>
+                                }
+                                else
+                                {
+                                    <div class="student-result-list">
+                                        @foreach (var rendu in _rendus.OrderByDescending(r => r.DateSoumission))
+                                        {
+                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card">
+                                                <div class="resource-card-head">
+                                                    <div>
+                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">Test #@rendu.TestId</MudText>
+                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@DisplayOrDash(rendu.Test?.Consigne)</MudText>
+                                                    </div>
+                                                    <MudChip T="string" Variant="Variant.Outlined" Color="@GetRenduNoteColor(rendu.Note)">@FormatRenduNote(rendu.Note)</MudChip>
+                                                </div>
+                                                <div class="student-result-meta">
+                                                    <MudText Typo="Typo.body2">Soumis le: @(rendu.DateSoumission?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                                    <MudText Typo="Typo.body2">Commentaire: @DisplayOrDash(rendu.CommentaireFormateur)</MudText>
+                                                </div>
+                                                @if (!string.IsNullOrWhiteSpace(rendu.FichierUrl))
+                                                {
+                                                    <div class="resource-actions">
+                                                        <a class="resource-action-link" href="@rendu.FichierUrl" target="_blank" rel="noopener noreferrer">Ouvrir</a>
+                                                        <a class="resource-action-link secondary" href="@rendu.FichierUrl" target="_blank" rel="noopener noreferrer" download="@GetDownloadFileName($"rendu-{rendu.Id}", rendu.FichierUrl)">Télécharger</a>
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        }
+                                    </div>
+                                }
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Mon avis">
+                    <MudGrid Class="mt-2 overview-grid">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-main-card overview-highlight-card">
+                                <div class="overview-section-head">
+                                    <div>
+                                        <MudText Typo="Typo.caption" Class="overview-label">Retour étudiant</MudText>
+                                        <MudText Typo="Typo.h5" Class="overview-heading">Donnez votre avis sur cette formation</MudText>
+                                    </div>
+                                    <MudChip T="string" Variant="Variant.Outlined" Color="@(_myAvis is null ? Color.Warning : Color.Success)">
+                                        @(_myAvis is null ? "Avis non publié" : "Avis enregistré")
+                                    </MudChip>
+                                </div>
+
+                                <div class="overview-block">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Votre note</MudText>
+                                    <MudSelect T="int" Value="_avisDraftNote" ValueChanged="value => _avisDraftNote = value" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                                        @for (var note = 1; note <= AvisMaxNote; note++)
+                                        {
+                                            <MudSelectItem T="int" Value="@note">@($"{note}/{AvisMaxNote} - {GetAvisStars(note)}")</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@($"Choisissez une note entre 1 et {AvisMaxNote} pour refléter votre expérience globale.")</MudText>
+                                </div>
+
+                                <div class="overview-block mb-0">
+                                    <MudText Typo="Typo.caption" Class="overview-label">Votre commentaire</MudText>
+                                    <MudTextField T="string"
+                                                  Value="_avisDraftCommentaire"
+                                                  ValueChanged="value => _avisDraftCommentaire = value ?? string.Empty"
+                                                  Variant="Variant.Outlined"
+                                                  Label="Partagez votre retour"
+                                                  Lines="5"
+                                                  FullWidth="true"
+                                                  Counter="500"
+                                                  MaxLength="500" />
+                                    @if (!string.IsNullOrWhiteSpace(_avisErrorMessage))
+                                    {
+                                        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-3">@_avisErrorMessage</MudAlert>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(_avisSuccessMessage))
+                                    {
+                                        <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mt-3">@_avisSuccessMessage</MudAlert>
+                                    }
+                                    <div class="resource-actions mt-3">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_avisSubmitting" OnClick="SubmitAvisAsync">
+                                            @(_avisSubmitting ? "Enregistrement..." : (_myAvis is null ? "Publier mon avis" : "Mettre à jour mon avis"))
+                                        </MudButton>
+                                    </div>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudPaper Outlined="true" Elevation="0" Class="pa-4 info-card overview-side-card">
+                                <div class="overview-section-head mb-2">
+                                    <div>
+                                        <MudText Typo="Typo.caption" Class="overview-label">Synthèse</MudText>
+                                        <MudText Typo="Typo.h6" Class="overview-heading">Avis sur la formation</MudText>
+                                    </div>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Moyenne</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@GetAverageAvisNoteLabel()</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Nombre d'avis</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@_formationAvis.Count</MudText>
+                                </div>
+                                <div class="overview-kv">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Votre statut</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@(_myAvis is null ? "Pas encore déposé" : "Avis publié")</MudText>
+                                </div>
+                                <div class="overview-kv mb-0">
+                                    <MudText Typo="Typo.body2" Class="overview-kv-key">Dernière mise à jour</MudText>
+                                    <MudText Typo="Typo.body2" Class="overview-kv-val">@(_myAvis?.Date?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                </div>
+
+                                @if (_formationAvis.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Class="mt-4 content-empty-state">Aucun avis n'a encore été publié pour cette formation.</MudAlert>
+                                }
+                                else
+                                {
+                                    <div class="student-result-list mt-4">
+                                        @foreach (var avis in _formationAvis.OrderByDescending(a => a.Date).Take(3))
+                                        {
+                                            <MudPaper Outlined="true" Elevation="0" Class="student-result-card avis-card">
+                                                <div class="resource-card-head">
+                                                    <div>
+                                                        <MudText Typo="Typo.caption" Class="resource-eyebrow">
+                                                            @(avis.InscriptionId == _inscription.Id ? "Votre avis" : "Avis d'un étudiant")
+                                                        </MudText>
+                                                        <MudText Typo="Typo.subtitle2" Class="resource-title">@GetAvisStars(avis.Note)</MudText>
+                                                    </div>
+                                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning">@($"{avis.Note}/{AvisMaxNote}")</MudChip>
+                                                </div>
+                                                <MudText Typo="Typo.body2" Class="mt-2">@DisplayOrDash(avis.Commentaire)</MudText>
+                                                <MudText Typo="Typo.caption" Class="submitted-answer-label">Publié le @(avis.Date?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudText>
+                                            </MudPaper>
+                                        }
+                                    </div>
+                                }
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private FormationDTO? _formation;
+    private InscriptionDTO? _inscription;
+    private List<ParticipationQuizDTO> _participations = [];
+    private List<RenduTestDTO> _rendus = [];
+    private List<AvisDTO> _formationAvis = [];
+    private AvisDTO? _myAvis;
+    private readonly Dictionary<int, Dictionary<int, string>> _quizAnswers = [];
+    private readonly HashSet<int> _quizSubmittingIds = [];
+    private readonly Dictionary<int, string> _quizErrorMessages = [];
+    private readonly Dictionary<int, string> _quizSuccessMessages = [];
+    private readonly Dictionary<int, string> _testDraftContents = [];
+    private readonly Dictionary<int, IBrowserFile?> _testDraftFiles = [];
+    private readonly Dictionary<int, string> _testDraftFileNames = [];
+    private readonly HashSet<int> _testSubmittingIds = [];
+    private readonly Dictionary<int, string> _testErrorMessages = [];
+    private readonly Dictionary<int, string> _testSuccessMessages = [];
+    private int _avisDraftNote = 5;
+    private string _avisDraftCommentaire = string.Empty;
+    private bool _avisSubmitting;
+    private string? _avisErrorMessage;
+    private string? _avisSuccessMessage;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    private const long MaxStudentUploadFileSize = 25 * 1024 * 1024;
+    private const int AvisMaxNote = 6;
+
+    private List<ModuleDTO> Modules => _formation?.Modules?.OrderBy(m => m.Ordre).ToList() ?? [];
+    private int TotalVideos => Modules.Sum(m => m.Videos?.Count ?? 0);
+    private int TotalDocuments => Modules.Sum(m => m.Documents?.Count ?? 0);
+    private float AutomaticProgress => CalculateAutomaticProgress();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _formation = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{Id}");
+            if (_formation is null)
+            {
+                return;
+            }
+
+            await EnsureQuizQuestionsLoadedAsync(_formation);
+
+            var inscriptions = await Http.GetFromJsonAsync<List<InscriptionDTO>>("api/inscriptions/me") ?? [];
+            _inscription = inscriptions.FirstOrDefault(i => i.FormationId == Id);
+
+            if (_inscription is not null)
+            {
+                _participations = await Http.GetFromJsonAsync<List<ParticipationQuizDTO>>($"api/participationquizzes/inscription/{_inscription.Id}") ?? [];
+                _rendus = await Http.GetFromJsonAsync<List<RenduTestDTO>>($"api/rendutests/inscription/{_inscription.Id}") ?? [];
+                await LoadAvisAsync();
+                HydrateLinkedEntities();
+                InitializeTestDrafts();
+                await SyncAutomaticProgressAsync();
+            }
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger les détails de la formation.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task EnsureQuizQuestionsLoadedAsync(FormationDTO formation)
+    {
+        foreach (var module in formation.Modules ?? [])
+        {
+            foreach (var quiz in module.Quizzes ?? [])
+            {
+                if (quiz.Questions is null || quiz.Questions.Count == 0)
+                {
+                    quiz.Questions = await Http.GetFromJsonAsync<List<QuestionDTO>>($"api/questions/quiz/{quiz.Id}") ?? [];
+                }
+            }
+        }
+    }
+
+    private void HydrateLinkedEntities()
+    {
+        foreach (var participation in _participations)
+        {
+            participation.Quiz = FindQuiz(participation.QuizId);
+        }
+
+        foreach (var rendu in _rendus)
+        {
+            rendu.Test = FindTest(rendu.TestId);
+        }
+    }
+
+    private void InitializeTestDrafts()
+    {
+        foreach (var rendu in _rendus)
+        {
+            _testDraftContents[rendu.TestId] = rendu.Contenu ?? string.Empty;
+        }
+    }
+
+    private async Task LoadAvisAsync()
+    {
+        if (_inscription is null)
+        {
+            _formationAvis = [];
+            _myAvis = null;
+            return;
+        }
+
+        _formationAvis = await Http.GetFromJsonAsync<List<AvisDTO>>($"api/avis/formation/{Id}") ?? [];
+        _myAvis = _formationAvis
+            .Where(avis => avis.InscriptionId == _inscription.Id)
+            .OrderByDescending(avis => avis.Date)
+            .ThenByDescending(avis => avis.Id)
+            .FirstOrDefault();
+
+        InitializeAvisDraft();
+    }
+
+    private void InitializeAvisDraft()
+    {
+        _avisDraftNote = _myAvis?.Note is >= 1 and <= AvisMaxNote ? _myAvis.Note : AvisMaxNote - 1;
+        _avisDraftCommentaire = _myAvis?.Commentaire ?? string.Empty;
+    }
+
+    private async Task SubmitAvisAsync()
+    {
+        if (_inscription is null)
+        {
+            return;
+        }
+
+        _avisErrorMessage = null;
+        _avisSuccessMessage = null;
+
+        if (_avisDraftNote is < 1 or > AvisMaxNote)
+        {
+            _avisErrorMessage = $"Veuillez choisir une note entre 1 et {AvisMaxNote}.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_avisDraftCommentaire))
+        {
+            _avisErrorMessage = "Veuillez saisir un commentaire avant de publier votre avis.";
+            return;
+        }
+
+        _avisSubmitting = true;
+
+        try
+        {
+            var hadExistingAvis = _myAvis is not null;
+            var payload = new AvisDTO
+            {
+                Id = _myAvis?.Id ?? 0,
+                Note = _avisDraftNote,
+                Commentaire = _avisDraftCommentaire.Trim(),
+                Date = DateTime.UtcNow,
+                InscriptionId = _inscription.Id
+            };
+
+            HttpResponseMessage response;
+            if (_myAvis is null)
+            {
+                response = await Http.PostAsJsonAsync("api/avis", payload);
+            }
+            else
+            {
+                response = await Http.PutAsJsonAsync($"api/avis/{_myAvis.Id}", payload);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _avisErrorMessage = await ReadErrorAsync(response, "Impossible d'enregistrer votre avis.");
+                return;
+            }
+
+            await LoadAvisAsync();
+            _avisSuccessMessage = hadExistingAvis
+                ? "Votre avis a été mis à jour avec succès."
+                : "Votre avis a été publié avec succès.";
+        }
+        catch
+        {
+            _avisErrorMessage = "Une erreur est survenue pendant l'enregistrement de votre avis.";
+        }
+        finally
+        {
+            _avisSubmitting = false;
+        }
+    }
+
+    private async Task SubmitQuizAsync(QuizDTO quiz)
+    {
+        if (_inscription is null)
+        {
+            return;
+        }
+
+        _quizErrorMessages.Remove(quiz.Id);
+        _quizSuccessMessages.Remove(quiz.Id);
+
+        if (!CanSubmitQuiz(quiz))
+        {
+            _quizErrorMessages[quiz.Id] = "Répondez à toutes les questions avant d'envoyer le quiz.";
+            return;
+        }
+
+        _quizSubmittingIds.Add(quiz.Id);
+
+        try
+        {
+            var score = CalculateQuizScore(quiz);
+            var existing = GetParticipation(quiz.Id);
+            var payload = new ParticipationQuizDTO
+            {
+                Id = existing?.Id ?? 0,
+                DatePassage = DateTime.UtcNow,
+                Score = score,
+                QuizId = quiz.Id,
+                InscriptionId = _inscription.Id
+            };
+
+            HttpResponseMessage response;
+            if (existing is null)
+            {
+                response = await Http.PostAsJsonAsync("api/participationquizzes", payload);
+            }
+            else
+            {
+                response = await Http.PutAsJsonAsync($"api/participationquizzes/{existing.Id}", payload);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _quizErrorMessages[quiz.Id] = await ReadErrorAsync(response, "Impossible d'enregistrer votre quiz.");
+                return;
+            }
+
+            if (existing is null)
+            {
+                var created = await response.Content.ReadFromJsonAsync<ParticipationQuizDTO>();
+                if (created is null)
+                {
+                    _quizErrorMessages[quiz.Id] = "La participation n'a pas pu être rechargée.";
+                    return;
+                }
+
+                created.Quiz = quiz;
+                _participations.Add(created);
+            }
+            else
+            {
+                existing.Score = score;
+                existing.DatePassage = payload.DatePassage;
+                existing.Quiz = quiz;
+            }
+
+            await SyncAutomaticProgressAsync();
+            _quizSuccessMessages[quiz.Id] = score >= quiz.ScoreMinimum
+                ? "Quiz validé avec succès."
+                : "Quiz envoyé. Vous pouvez le repasser pour améliorer votre score.";
+        }
+        catch
+        {
+            _quizErrorMessages[quiz.Id] = "Une erreur est survenue pendant l'envoi du quiz.";
+        }
+        finally
+        {
+            _quizSubmittingIds.Remove(quiz.Id);
+        }
+    }
+
+    private async Task SubmitTestAsync(TestDTO test)
+    {
+        if (_inscription is null)
+        {
+            return;
+        }
+
+        _testErrorMessages.Remove(test.Id);
+        _testSuccessMessages.Remove(test.Id);
+
+        var draftContent = GetTestDraftContent(test.Id).Trim();
+        var draftFile = GetStudentTestFile(test.Id);
+
+        if (string.IsNullOrWhiteSpace(draftContent) && draftFile is null)
+        {
+            _testErrorMessages[test.Id] = "Ajoutez un message ou sélectionnez un fichier avant l'envoi.";
+            return;
+        }
+
+        _testSubmittingIds.Add(test.Id);
+
+        try
+        {
+            using var formData = new MultipartFormDataContent
+            {
+                { new StringContent(draftContent), "Contenu" },
+                { new StringContent(test.Id.ToString()), "TestId" },
+                { new StringContent(_inscription.Id.ToString()), "InscriptionId" }
+            };
+
+            if (draftFile is not null)
+            {
+                var fileStream = draftFile.OpenReadStream(MaxStudentUploadFileSize);
+                var streamContent = new StreamContent(fileStream);
+                if (!string.IsNullOrWhiteSpace(draftFile.ContentType))
+                {
+                    streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(draftFile.ContentType);
+                }
+
+                formData.Add(streamContent, "Fichier", draftFile.Name);
+            }
+
+            var response = await Http.PostAsync("api/rendutests/upload", formData);
+            if (!response.IsSuccessStatusCode)
+            {
+                _testErrorMessages[test.Id] = await ReadErrorAsync(response, "Impossible d'envoyer le test.");
+                return;
+            }
+
+            var saved = await response.Content.ReadFromJsonAsync<RenduTestDTO>();
+            if (saved is null)
+            {
+                _testErrorMessages[test.Id] = "Le rendu n'a pas pu être rechargé.";
+                return;
+            }
+
+            saved.Test = test;
+            var existing = GetRendu(test.Id);
+            if (existing is null)
+            {
+                _rendus.Add(saved);
+            }
+            else
+            {
+                existing.Id = saved.Id;
+                existing.DateSoumission = saved.DateSoumission;
+                existing.Contenu = saved.Contenu;
+                existing.FichierUrl = saved.FichierUrl;
+                existing.Note = saved.Note;
+                existing.CommentaireFormateur = saved.CommentaireFormateur;
+                existing.Test = test;
+            }
+
+            _testDraftContents[test.Id] = saved.Contenu ?? string.Empty;
+            _testDraftFiles.Remove(test.Id);
+            _testDraftFileNames.Remove(test.Id);
+            await SyncAutomaticProgressAsync();
+            _testSuccessMessages[test.Id] = "Votre rendu a bien été enregistré.";
+        }
+        catch
+        {
+            _testErrorMessages[test.Id] = "Une erreur est survenue pendant l'envoi du test.";
+        }
+        finally
+        {
+            _testSubmittingIds.Remove(test.Id);
+        }
+    }
+
+    private async Task SyncAutomaticProgressAsync()
+    {
+        if (_inscription is null)
+        {
+            return;
+        }
+
+        var automaticProgress = CalculateAutomaticProgress();
+        if (Math.Abs(_inscription.Progression - automaticProgress) < 0.01f)
+        {
+            return;
+        }
+
+        _inscription.Progression = automaticProgress;
+        var dto = new InscriptionDTO
+        {
+            Id = _inscription.Id,
+            DateInscription = _inscription.DateInscription,
+            Progression = automaticProgress,
+            EdudiantId = _inscription.EdudiantId,
+            FormationId = _inscription.FormationId
+        };
+
+        await Http.PutAsJsonAsync($"api/inscriptions/{_inscription.Id}", dto);
+    }
+
+    private bool CanSubmitQuiz(QuizDTO quiz)
+        => quiz.Questions is not null
+           && quiz.Questions.Count > 0
+           && quiz.Questions.All(question => !string.IsNullOrWhiteSpace(GetQuizAnswer(quiz.Id, question.Id)));
+
+    private float CalculateQuizScore(QuizDTO quiz)
+    {
+        var score = 0f;
+        foreach (var question in quiz.Questions ?? [])
+        {
+            var selectedAnswer = GetQuizAnswer(quiz.Id, question.Id);
+            if (string.IsNullOrWhiteSpace(selectedAnswer))
+            {
+                continue;
+            }
+
+            var selectedIsTrue = string.Equals(selectedAnswer, "VRAI", StringComparison.OrdinalIgnoreCase);
+            if (IsCorrectAnswer(question, selectedIsTrue))
+            {
+                score += question.Bareme;
+            }
+        }
+
+        return score;
+    }
+
+    private static bool IsCorrectAnswer(QuestionDTO question, bool selectedIsTrue)
+    {
+        var correctOption = question.OptionsReponses?.FirstOrDefault(option => option.EstCorrecte);
+        if (correctOption is not null)
+        {
+            return string.Equals(correctOption.Texte?.Trim(), selectedIsTrue ? "VRAI" : "FAUX", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return question.Type == TypeQuestion.VRAI ? selectedIsTrue : !selectedIsTrue;
+    }
+
+    private string GetQuizAnswer(int quizId, int questionId)
+    {
+        if (_quizAnswers.TryGetValue(quizId, out var answers)
+            && answers.TryGetValue(questionId, out var answer))
+        {
+            return answer;
+        }
+
+        return string.Empty;
+    }
+
+    private void SetQuizAnswer(int quizId, int questionId, string? value)
+    {
+        if (!_quizAnswers.TryGetValue(quizId, out var answers))
+        {
+            answers = [];
+            _quizAnswers[quizId] = answers;
+        }
+
+        answers[questionId] = value ?? string.Empty;
+    }
+
+    private void ResetQuizAnswers(int quizId)
+    {
+        _quizAnswers.Remove(quizId);
+        _quizErrorMessages.Remove(quizId);
+        _quizSuccessMessages.Remove(quizId);
+    }
+
+    private void OnStudentTestFileSelected(int testId, InputFileChangeEventArgs eventArgs)
+    {
+        _testDraftFiles[testId] = eventArgs.File;
+        _testDraftFileNames[testId] = eventArgs.File.Name;
+        _testErrorMessages.Remove(testId);
+        _testSuccessMessages.Remove(testId);
+    }
+
+    private string GetStudentTestFileName(int testId)
+        => _testDraftFileNames.TryGetValue(testId, out var fileName) ? fileName : string.Empty;
+
+    private IBrowserFile? GetStudentTestFile(int testId)
+        => _testDraftFiles.TryGetValue(testId, out var file) ? file : null;
+
+    private string GetTestDraftContent(int testId)
+        => _testDraftContents.TryGetValue(testId, out var content) ? content : string.Empty;
+
+    private void SetTestDraftContent(int testId, string? value)
+    {
+        _testDraftContents[testId] = value ?? string.Empty;
+        _testErrorMessages.Remove(testId);
+        _testSuccessMessages.Remove(testId);
+    }
+
+    private void ResetTestDraft(int testId, bool preserveExistingContent)
+    {
+        if (preserveExistingContent)
+        {
+            var existing = GetRendu(testId);
+            _testDraftContents[testId] = existing?.Contenu ?? string.Empty;
+        }
+        else
+        {
+            _testDraftContents.Remove(testId);
+        }
+
+        _testDraftFiles.Remove(testId);
+        _testDraftFileNames.Remove(testId);
+        _testErrorMessages.Remove(testId);
+        _testSuccessMessages.Remove(testId);
+    }
+
+    private ParticipationQuizDTO? GetParticipation(int quizId)
+        => _participations.FirstOrDefault(participation => participation.QuizId == quizId);
+
+    private RenduTestDTO? GetRendu(int testId)
+        => _rendus.FirstOrDefault(rendu => rendu.TestId == testId);
+
+    private ModuleDTO? FindModule(int quizId)
+        => Modules.FirstOrDefault(module => module.Quizzes?.Any(quiz => quiz.Id == quizId) == true);
+
+    private QuizDTO? FindQuiz(int quizId)
+        => Modules.SelectMany(module => module.Quizzes ?? []).FirstOrDefault(quiz => quiz.Id == quizId);
+
+    private TestDTO? FindTest(int testId)
+        => Modules.SelectMany(module => module.Tests ?? []).FirstOrDefault(test => test.Id == testId);
+
+    private int GetValidatedQuizCount()
+        => _participations.Count(participation =>
+            participation.Quiz is not null && participation.Score >= participation.Quiz.ScoreMinimum);
+
+    private float CalculateAutomaticProgress()
+    {
+        var totalQuizzes = Modules.Sum(module => module.Quizzes?.Count ?? 0);
+        var totalTests = Modules.Sum(module => module.Tests?.Count ?? 0);
+        var totalEvaluations = totalQuizzes + totalTests;
+
+        if (totalEvaluations <= 0)
+        {
+            return 0;
+        }
+
+        var completedQuizzes = _participations.Select(participation => participation.QuizId).Distinct().Count();
+        var completedTests = _rendus.Select(rendu => rendu.TestId).Distinct().Count();
+        var progress = (float)(completedQuizzes + completedTests) / totalEvaluations * 100f;
+        return Math.Clamp(progress, 0, 100);
+    }
+
+    private static string DisplayOrDash(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string GetCategoryName(FormationDTO formation)
+        => formation.SousCategorie?.Categorie?.Nom
+           ?? formation.SousCategorie?.Nom
+           ?? "Sans catégorie";
+
+    private static string GetQuizTitle(QuizDTO? quiz, ModuleDTO? module)
+        => quiz is null
+            ? "Quiz"
+            : $"{DisplayOrDash(module?.Titre)} - {quiz.Questions?.Count ?? 0} question(s)";
+
+    private static string GetQuizPanelTitle(QuizDTO quiz, ModuleDTO module, ParticipationQuizDTO? participation, float maxScore)
+        => participation is null
+            ? $"{DisplayOrDash(module.Titre)} - Quiz #{quiz.Id}"
+            : $"{DisplayOrDash(module.Titre)} - Quiz #{quiz.Id} - {participation.Score}/{maxScore}";
+
+    private static float GetQuizMaximumScore(QuizDTO? quiz)
+        => quiz?.Questions?.Sum(question => question.Bareme) ?? 0f;
+
+    private static Color GetQuizParticipationColor(ParticipationQuizDTO participation, QuizDTO? quiz)
+        => participation.Score >= (quiz?.ScoreMinimum ?? 0) ? Color.Success : Color.Warning;
+
+    private static Color GetRenduNoteColor(float? note)
+        => note is null ? Color.Warning : note >= 10 ? Color.Success : Color.Error;
+
+    private static string FormatRenduNote(float? note)
+        => note.HasValue ? $"{note}/20" : "En attente";
+
+    private static string GetDownloadFileName(string? baseName, string? url)
+    {
+        var extension = Path.GetExtension(url ?? string.Empty);
+        var safeBase = string.IsNullOrWhiteSpace(baseName) ? "fichier" : baseName.Trim();
+        return string.IsNullOrWhiteSpace(extension) ? safeBase : $"{safeBase}{extension}";
+    }
+
+    private static string GetDocumentFormatLabel(DocumentDTO document)
+    {
+        if (!string.IsNullOrWhiteSpace(document.Format))
+        {
+            return document.Format.ToUpperInvariant();
+        }
+
+        var extension = Path.GetExtension(document.UrlFichier ?? string.Empty);
+        return string.IsNullOrWhiteSpace(extension) ? "DOC" : extension.Trim('.').ToUpperInvariant();
+    }
+
+    private double GetAverageAvisNote()
+        => _formationAvis.Count == 0 ? 0 : _formationAvis.Average(avis => avis.Note);
+
+    private string GetAverageAvisNoteLabel()
+        => _formationAvis.Count == 0 ? "-" : $"{GetAverageAvisNote():0.0}/{AvisMaxNote}";
+
+    private static string GetAvisStars(int note)
+    {
+        var normalized = Math.Clamp(note, 0, AvisMaxNote);
+        return new string('★', normalized) + new string('☆', AvisMaxNote - normalized);
+    }
+
+    private string GetSubmittedQuizAnswerLabel(int quizId, int questionId)
+    {
+        var answer = GetQuizAnswer(quizId, questionId);
+        return string.IsNullOrWhiteSpace(answer)
+            ? "Réponse envoyée, détail non disponible après rechargement."
+            : $"Réponse envoyée : {answer}";
+    }
+
+    private bool TryGetQuizError(int quizId, out string message)
+        => _quizErrorMessages.TryGetValue(quizId, out message!);
+
+    private bool TryGetQuizSuccess(int quizId, out string message)
+        => _quizSuccessMessages.TryGetValue(quizId, out message!);
+
+    private bool TryGetTestError(int testId, out string message)
+        => _testErrorMessages.TryGetValue(testId, out message!);
+
+    private bool TryGetTestSuccess(int testId, out string message)
+        => _testSuccessMessages.TryGetValue(testId, out message!);
+
+    private static async Task<string> ReadErrorAsync(HttpResponseMessage response, string fallbackMessage)
+    {
+        try
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            return string.IsNullOrWhiteSpace(error) ? fallbackMessage : error;
+        }
+        catch
+        {
+            return fallbackMessage;
+        }
+    }
+}

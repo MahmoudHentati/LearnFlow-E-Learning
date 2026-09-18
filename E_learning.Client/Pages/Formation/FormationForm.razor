@@ -1,0 +1,212 @@
+@page "/admin/formations/form"
+@page "/admin/formations/form/{Id:int}"
+@attribute [Authorize(Roles = "Admin,SUPERADMIN")]
+@using E_learning.Models.Helpers
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>@(IsEdit ? "Modifier formation" : "Nouvelle formation")</PageTitle>
+
+<div class="formation-form-page">
+    <MudPaper Class="formation-form-card" Elevation="0">
+        <MudText Typo="Typo.h5" Class="mb-4">@(IsEdit ? "Modifier la formation" : "Créer une formation")</MudText>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-3">@_errorMessage</MudAlert>
+        }
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.Titre" Label="Titre" Variant="Variant.Outlined" Required="true" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField T="int" @bind-Value="_model.SousCategorieId" Label="SousCategorieId" Variant="Variant.Outlined" FullWidth="true" Min="1" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="AdminUserDto"
+                                 Label="Formateur"
+                                 Variant="Variant.Outlined"
+                                 FullWidth="true"
+                                 Dense="true"
+                                 Clearable="true"
+                                 ToStringFunc="GetInstructorDisplayName"
+                                 SearchFunc="SearchInstructorsAsync"
+                                 Value="_selectedInstructor"
+                                 ValueChanged="OnInstructorChanged"
+                                 ResetValueOnEmptyText="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="_model.Difficulte" Label="Difficulté" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var option in DifficultyOptions)
+                    {
+                        <MudSelectItem Value="@option">@option</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="string" @bind-Value="_model.Statut" Label="Statut" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var option in StatusOptions)
+                    {
+                        <MudSelectItem Value="@option">@option</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudDatePicker @bind-Date="_model.DateCreation" Label="Date de création" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_model.Prerequis" Label="Prérequis" Variant="Variant.Outlined" Lines="2" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_model.Description" Label="Description" Variant="Variant.Outlined" Lines="3" FullWidth="true" />
+            </MudItem>
+        </MudGrid>
+
+        <div class="formation-form-actions mt-4">
+            <MudButton Variant="Variant.Text" OnClick="GoBack">Annuler</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSaving" OnClick="SaveAsync">
+                @(_isSaving ? "Enregistrement..." : "Enregistrer")
+            </MudButton>
+        </div>
+    </MudPaper>
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private FormationDTO _model = new()
+    {
+        DateCreation = DateTime.UtcNow
+    };
+
+    private bool _isSaving;
+    private string? _errorMessage;
+    private static readonly string[] DifficultyOptions = ["Débutant", "Intermédiaire", "Avancé"];
+    private static readonly string[] StatusOptions = FormationStatusHelper.OrderedValues;
+    private List<AdminUserDto> _instructors = [];
+    private AdminUserDto? _selectedInstructor;
+    private bool IsEdit => Id.HasValue;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            _instructors = await Http.GetFromJsonAsync<List<AdminUserDto>>("api/users/by-role/instructor") ?? [];
+
+            if (!IsEdit)
+            {
+                _model.Difficulte = string.IsNullOrWhiteSpace(_model.Difficulte) ? DifficultyOptions[0] : _model.Difficulte;
+                _model.Statut = FormationStatusHelper.NormalizeOrDefault(_model.Statut, StatusOptions[0]);
+                return;
+            }
+
+            var loaded = await Http.GetFromJsonAsync<FormationDTO>($"api/formation/{Id.GetValueOrDefault()}");
+            if (loaded is null)
+            {
+                _errorMessage = "Formation introuvable.";
+                return;
+            }
+
+            _model = loaded;
+            _model.Statut = FormationStatusHelper.NormalizeOrDefault(_model.Statut, StatusOptions[0]);
+            if (!string.IsNullOrWhiteSpace(_model.FormateurId))
+            {
+                _selectedInstructor = _instructors.FirstOrDefault(i => i.Id == _model.FormateurId);
+            }
+        }
+        catch
+        {
+            _errorMessage = "Impossible de charger la formation.";
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Titre))
+        {
+            _errorMessage = "Le titre est obligatoire.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_model.FormateurId))
+        {
+            _errorMessage = "Le formateur est obligatoire.";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            HttpResponseMessage response;
+            if (IsEdit)
+            {
+                response = await Http.PutAsJsonAsync($"api/formation/{_model.Id}", _model);
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/formation", _model);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _errorMessage = "L'enregistrement a échoué.";
+                return;
+            }
+
+            NavigationManager.NavigateTo("/admin/formations");
+        }
+        catch
+        {
+            _errorMessage = "Erreur pendant l'enregistrement.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/admin/formations");
+    }
+
+    private Task<IEnumerable<AdminUserDto>> SearchInstructorsAsync(string value, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IEnumerable<AdminUserDto> query = _instructors;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            query = query.Where(i =>
+                GetInstructorDisplayName(i).Contains(value, StringComparison.OrdinalIgnoreCase) ||
+                i.Email.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult<IEnumerable<AdminUserDto>>(query
+            .OrderBy(i => i.LastName)
+            .ThenBy(i => i.FirstName)
+            .ToList());
+    }
+
+    private static string GetInstructorDisplayName(AdminUserDto? instructor)
+    {
+        if (instructor is null)
+        {
+            return string.Empty;
+        }
+
+        var fullName = $"{instructor.FirstName} {instructor.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? instructor.Email : $"{fullName} ({instructor.Email})";
+    }
+
+    private void OnInstructorChanged(AdminUserDto? instructor)
+    {
+        _selectedInstructor = instructor;
+        _model.FormateurId = instructor?.Id ?? string.Empty;
+    }
+}

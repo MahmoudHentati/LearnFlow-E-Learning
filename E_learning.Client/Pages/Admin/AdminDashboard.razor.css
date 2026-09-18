@@ -1,0 +1,143 @@
+.admin-dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 2rem;
+}
+
+.admin-header {
+    margin-bottom: 1.25rem;
+}
+
+.admin-header h1 {
+    margin: 0;
+    font-size: clamp(1.5rem, 2.4vw, 2.2rem);
+    line-height: 1.2;
+}
+
+.admin-header p {
+    margin: 0.4rem 0 0;
+    color: var(--mud-palette-text-secondary);
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 1rem;
+}
+
+.admin-card {
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 14px;
+    padding: 1rem;
+    box-shadow: var(--mud-elevation-2);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.admin-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--mud-elevation-6);
+}
+
+.admin-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.admin-card-title ::deep .mud-icon-root {
+    color: var(--mud-palette-primary);
+}
+
+.admin-card-title h2 {
+    margin: 0;
+    font-size: 1.08rem;
+}
+
+.admin-card p {
+    margin: 0.4rem 0 1rem;
+    color: var(--mud-palette-text-secondary);
+    line-height: 1.45;
+}
+
+.admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.admin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 0.48rem 0.8rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 1px solid transparent;
+    transition: all 0.18s ease;
+}
+
+.admin-btn:focus-visible {
+    outline: 2px solid var(--mud-palette-primary);
+    outline-offset: 2px;
+}
+
+.admin-btn-primary {
+    background: var(--mud-palette-primary);
+    color: var(--mud-palette-primary-text);
+}
+
+.admin-btn-primary:hover {
+    filter: brightness(0.96);
+}
+
+.admin-btn-outline {
+    border-color: var(--mud-palette-lines-default);
+    color: var(--mud-palette-text-primary);
+    background: transparent;
+}
+
+.admin-btn-outline:hover {
+    background: var(--mud-palette-action-default-hover);
+}
+
+.admin-roadmap {
+    margin-top: 1rem;
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 14px;
+    padding: 1rem;
+}
+
+.admin-roadmap h3 {
+    margin: 0 0 0.7rem;
+    font-size: 1.05rem;
+}
+
+.admin-roadmap ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--mud-palette-text-secondary);
+}
+
+.admin-roadmap li + li {
+    margin-top: 0.3rem;
+}
+
+@media (max-width: 600px) {
+    .admin-dashboard {
+        padding: 1rem 0.75rem 1.5rem;
+    }
+
+    .admin-actions {
+        flex-direction: column;
+    }
+
+    .admin-btn {
+        width: 100%;
+    }
+}
